@@ -214,7 +214,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"planId\": \"plan-uuid-here\"\n}"
+              "raw": "{\n  \"planId\": \"plan-uuid-here\"\n}\n\n// To get a valid plan UUID:\n// 1. First call GET /api/plans to list all plans\n// 2. Copy the 'id' field from any plan\n// 3. Replace 'plan-uuid-here' with the actual UUID"
             },
             "url": {
               "raw": "{{baseUrl}}/api/plans/subscribe",
@@ -333,7 +333,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"role\": \"admin\"\n}"
+              "raw": "{\n  \"role\": \"admin\"\n}\n\n// To get a valid user UUID:\n// 1. First call GET /api/admin/users to list all users\n// 2. Copy the 'id' field from any user\n// 3. Update the :id parameter in the URL"
             },
             "url": {
               "raw": "{{baseUrl}}/api/admin/users/:id/role",

@@ -179,9 +179,17 @@ Para começar rapidamente, siga o guia: [QUICKSTART.md](./QUICKSTART.md)
 
 ### Postman Collection
 
-Importe a collection `POSTMAN_COLLECTION.json` no Postman para testar todos os endpoints facilmente.
+Importe a collection `POSTMAN_COLLECTION.json` no Postman para testar todos os endpoints facilmente. Ideal para:
+- Testar múltiplos endpoints rapidamente
+- Salvar tokens automaticamente entre requests
+- Organizar e compartilhar testes com a equipe
 
 ### cURL Examples
+
+Utilize cURL para testes rápidos via linha de comando. Ideal para:
+- Testes automatizados e scripts
+- CI/CD pipelines
+- Verificações rápidas de disponibilidade
 
 ```bash
 # Health check

@@ -54,6 +54,12 @@ JWT_EXPIRES_IN=7d
 ALLOWED_ORIGINS=http://localhost:3000,http://localhost:5173
 ```
 
+**⚠️ IMPORTANTE - Segurança:**
+- A `SERVICE_ROLE_KEY` bypassa todas as políticas RLS - mantenha-a SEMPRE secreta
+- Nunca exponha a service role key em código cliente ou repositórios públicos
+- Use a `ANON_KEY` para operações do cliente
+- A service role key deve ser usada APENAS no backend
+
 ## 3. Executar a API
 
 ### Modo Desenvolvimento
