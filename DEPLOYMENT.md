@@ -130,9 +130,12 @@ heroku config:set JWT_EXPIRES_IN=7d
 heroku config:set ALLOWED_ORIGINS=your_origins
 ```
 
-5. Create a `Procfile`:
+5. Create a `Procfile` (if it doesn't exist):
 ```bash
-echo "web: npm start" > Procfile
+# Check if Procfile exists, create if it doesn't
+if [ ! -f Procfile ]; then
+  echo "web: npm start" > Procfile
+fi
 ```
 
 6. Deploy:
