@@ -91,7 +91,7 @@ SUPABASE_ANON_KEY=eyJhbGc...
 SUPABASE_SERVICE_ROLE_KEY=eyJhbGc...
 
 # Generate a strong secret (use: openssl rand -base64 32)
-JWT_SECRET=your-super-secret-jwt-key-min-32-chars
+JWT_SECRET=REPLACE_WITH_STRONG_RANDOM_SECRET_MIN_32_CHARS
 
 JWT_EXPIRES_IN=7d
 ALLOWED_ORIGINS=http://localhost:3000
@@ -128,7 +128,7 @@ curl -X POST http://localhost:3000/api/auth/register \
   -H "Content-Type: application/json" \
   -d '{
     "email": "user@example.com",
-    "password": "senha123",
+    "password": "SecureP@ss123!",
     "name": "João Silva"
   }'
 ```
