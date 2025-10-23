@@ -171,9 +171,17 @@ Tabelas principais:
 2. Configure as variáveis de ambiente
 3. O `render.yaml` já está configurado
 
+## 🚀 Quick Start
+
+Para começar rapidamente, siga o guia: [QUICKSTART.md](./QUICKSTART.md)
+
 ## 🧪 Testando a API
 
-Use ferramentas como Postman, Insomnia ou cURL:
+### Postman Collection
+
+Importe a collection `POSTMAN_COLLECTION.json` no Postman para testar todos os endpoints facilmente.
+
+### cURL Examples
 
 ```bash
 # Health check
