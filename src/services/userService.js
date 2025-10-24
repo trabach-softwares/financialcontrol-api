@@ -17,6 +17,49 @@ export const userService = {
     }
   },
 
+  async getProfileWithPlan(userId) {
+    try {
+      const { data, error } = await supabaseAdmin
+        .from('users')
+        .select(`
+          id, 
+          email, 
+          name, 
+          role, 
+          plan_id, 
+          created_at,
+          plans (
+            id,
+            name,
+            description,
+            price,
+            features,
+            max_transactions,
+            is_active
+          )
+        `)
+        .eq('id', userId)
+        .single();
+
+      if (error) throw error;
+      
+      // Restructure the response to have plan as a separate object
+      const user = {
+        id: data.id,
+        email: data.email,
+        name: data.name,
+        role: data.role,
+        plan_id: data.plan_id,
+        created_at: data.created_at,
+        plan: data.plans || null
+      };
+
+      return user;
+    } catch (error) {
+      throw error;
+    }
+  },
+
   async updateProfile(userId, updates) {
     try {
       const updateData = {};

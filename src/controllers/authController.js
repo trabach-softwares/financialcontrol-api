@@ -1,4 +1,5 @@
 import { authService } from '../services/authService.js';
+import { userService } from '../services/userService.js';
 import { sendSuccess, sendError } from '../utils/response.js';
 
 export const authController = {
@@ -34,7 +35,8 @@ export const authController = {
 
   async me(req, res) {
     try {
-      return sendSuccess(res, { user: req.user }, 'User data retrieved successfully');
+      const userWithPlan = await userService.getProfileWithPlan(req.user.id);
+      return sendSuccess(res, { user: userWithPlan }, 'User data retrieved successfully');
     } catch (error) {
       return sendError(res, error.message || 'Failed to get user data', 400);
     }
