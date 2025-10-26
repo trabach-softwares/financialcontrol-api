@@ -2,8 +2,10 @@
 node_modules/
 package-lock.json
 
+# Arquivos de Ambiente (inclui .env, .env.local, .env.development, etc.)
+.env*
+
 # Logs
-.env
 logs
 *.log
 npm-debug.log*
