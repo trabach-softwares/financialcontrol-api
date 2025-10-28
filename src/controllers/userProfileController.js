@@ -126,7 +126,34 @@ export const getProfile = async (req, res) => {
 export const updateProfile = async (req, res) => {
   try {
     const userId = req.userId;
-    const { name, phone, birth_date, cpf, company, position, bio } = req.body;
+    const { name, email, phone, birth_date, cpf, company, position, bio } = req.body;
+
+    // Normalização de data de nascimento
+    let birthDateNormalized = null;
+    if (birth_date) {
+      // Aceita formatos: 'YYYY-MM-DD' (ISO) ou 'DD/MM/YYYY' (brasileiro)
+      const isoLike = /^\d{4}-\d{2}-\d{2}$/;
+      const brLike = /^\d{2}\/\d{2}\/\d{4}$/;
+      if (isoLike.test(birth_date)) {
+        birthDateNormalized = birth_date;
+      } else if (brLike.test(birth_date)) {
+        const [dd, mm, yyyy] = birth_date.split('/');
+        birthDateNormalized = `${yyyy}-${mm}-${dd}`;
+      } else {
+        return res.status(400).json({
+          success: false,
+          message: 'Data de nascimento inválida. Use YYYY-MM-DD ou DD/MM/YYYY'
+        });
+      }
+      // Validação final de data
+      const d = new Date(birthDateNormalized);
+      if (Number.isNaN(d.getTime())) {
+        return res.status(400).json({
+          success: false,
+          message: 'Data de nascimento inválida'
+        });
+      }
+    }
 
     // 🔍 LOG DO PAYLOAD RECEBIDO
     console.log('📥 [BACKEND UPDATE PROFILE] ==========================================');
@@ -136,12 +163,31 @@ export const updateProfile = async (req, res) => {
     console.log('📥 [BACKEND UPDATE PROFILE] Campos:', Object.keys(req.body).join(', '));
     console.log('📥 [BACKEND UPDATE PROFILE] ==========================================');
 
+    // Log auxiliar da data normalizada
+    console.log('📅 [BACKEND UPDATE PROFILE] birth_date recebido:', birth_date)
+    console.log('📅 [BACKEND UPDATE PROFILE] birth_date normalizado:', birthDateNormalized)
+
     // Validações básicas
     if (!name || name.trim().length === 0) {
       console.warn('⚠️ [BACKEND UPDATE PROFILE] Validação falhou: Nome é obrigatório');
       return res.status(400).json({
         success: false,
         message: 'Nome é obrigatório'
+      });
+    }
+
+    // Email obrigatório e válido
+    if (!email || email.trim().length === 0) {
+      return res.status(400).json({
+        success: false,
+        message: 'Email é obrigatório'
+      });
+    }
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Email inválido'
       });
     }
 
@@ -167,28 +213,47 @@ export const updateProfile = async (req, res) => {
       }
     }
 
-    const { data, error } = await supabaseAdmin
+    // Verifica existência do usuário antes de atualizar
+    const { data: userExists, error: fetchUserError } = await supabaseAdmin
+      .from('users')
+      .select('id')
+      .eq('id', userId)
+      .single();
+
+    if (fetchUserError || !userExists) {
+      return res.status(404).json({ success: false, message: 'Usuário não encontrado' });
+    }
+
+    // Executa atualização
+    const { error: updateError } = await supabaseAdmin
       .from('users')
       .update({
         name,
+        email,
         phone,
-        birth_date,
+        birth_date: birthDateNormalized ?? null,
         cpf,
         company,
         position,
         bio,
         updated_at: new Date().toISOString()
       })
+      .eq('id', userId);
+
+    if (updateError) {
+      console.error('❌ [BACKEND UPDATE PROFILE] Erro ao atualizar:', updateError);
+      return res.status(400).json({ success: false, message: updateError.message || 'Falha ao atualizar perfil' });
+    }
+
+    // Busca dados atualizados
+    const { data, error: fetchUpdatedError } = await supabaseAdmin
+      .from('users')
+      .select('id, email, name, role, phone, birth_date, cpf, company, position, bio, avatar, plan_id, created_at, updated_at, last_login')
       .eq('id', userId)
-      .select('id, email, name, role, phone, birth_date, cpf, company, position, bio, avatar, plan_id, created_at, updated_at')
       .single();
 
-    if (error || !data) {
-      console.error('❌ [BACKEND UPDATE PROFILE] Erro Supabase:', error);
-      return res.status(404).json({
-        success: false,
-        message: 'Usuário não encontrado'
-      });
+    if (fetchUpdatedError || !data) {
+      return res.status(500).json({ success: false, message: 'Falha ao recuperar dados atualizados' });
     }
 
     // 🔍 LOG DA RESPOSTA ANTES DE ENVIAR
