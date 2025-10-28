@@ -12,6 +12,7 @@ router.use(apiLimiter);
 router.post('/', transactionController.create);
 router.get('/', transactionController.getAll);
 router.get('/stats', transactionController.getStats);
+router.get('/timeline', transactionController.getTimeline);
 router.get('/:id', transactionController.getById);
 router.put('/:id', transactionController.update);
 router.delete('/:id', transactionController.delete);

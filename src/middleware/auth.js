@@ -12,7 +12,11 @@ export const authenticateToken = (req, res, next) => {
 
   try {
     const decoded = jwt.verify(token, jwtConfig.secret);
+    // Popular tanto req.user quanto req.userId para compatibilidade
     req.user = decoded;
+    if (decoded && decoded.id) {
+      req.userId = decoded.id;
+    }
     next();
   } catch (error) {
     return sendError(res, 'Invalid or expired token', 403);

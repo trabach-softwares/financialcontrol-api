@@ -30,13 +30,16 @@ export const transactionController = {
 
   async getAll(req, res) {
     try {
-      const { type, category, startDate, endDate } = req.query;
+      const { type, category, startDate, endDate, limit, sort, page } = req.query;
       
       const transactions = await transactionService.getAll(req.user.id, {
         type,
         category,
         startDate,
-        endDate
+        endDate,
+        limit: limit ? parseInt(limit) : undefined,
+        sort,
+        page: page ? parseInt(page) : undefined
       });
 
       return sendSuccess(res, transactions, 'Transactions retrieved successfully');
@@ -98,6 +101,16 @@ export const transactionController = {
     try {
       const stats = await transactionService.getStats(req.user.id);
       return sendSuccess(res, stats, 'Statistics retrieved successfully');
+    } catch (error) {
+      return sendError(res, error.message || 'Failed to retrieve statistics', 400);
+    }
+  },
+
+  async getTimeline(req, res) {
+    try {
+      const { period = '6months' } = req.query;
+      const timeline = await transactionService.getTimeline(req.user.id, period);
+      return sendSuccess(res, timeline, 'Timeline retrieved successfully');
     } catch (error) {
       return sendError(res, error.message || 'Failed to retrieve statistics', 400);
     }

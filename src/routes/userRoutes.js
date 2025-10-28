@@ -9,9 +9,6 @@ const router = express.Router();
 router.use(authenticateToken);
 router.use(apiLimiter);
 
-router.get('/profile', userController.getProfile);
-router.put('/profile', userController.updateProfile);
-router.put('/password', userController.changePassword);
 router.put('/plan', userController.updatePlan);
 
 export default router;
