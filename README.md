@@ -1,6 +1,6 @@
 # Financial Control API 💰
 
-REST API para SaaS de controle financeiro com Node.js, Express e Supabase (PostgreSQL).
+REST API para SaaS de Financial Control com Node.js, Express e Supabase (PostgreSQL).
 
 ## 🚀 Características
 
