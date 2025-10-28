@@ -6,7 +6,7 @@ export const userService = {
     try {
       const { data, error } = await supabaseAdmin
         .from('users')
-        .select('id, email, name, role, plan_id, created_at')
+        .select('id, email, name, role, plan_id, created_at, updated_at, last_login, phone, birth_date, cpf, company, position, bio, avatar')
         .eq('id', userId)
         .single();
 
@@ -28,6 +28,15 @@ export const userService = {
           role, 
           plan_id, 
           created_at,
+          updated_at,
+          last_login,
+          phone,
+          birth_date,
+          cpf,
+          company,
+          position,
+          bio,
+          avatar,
           plans (
             id,
             name,
@@ -51,6 +60,15 @@ export const userService = {
         role: data.role,
         plan_id: data.plan_id,
         created_at: data.created_at,
+        updated_at: data.updated_at,
+        last_login: data.last_login,
+        phone: data.phone,
+        birth_date: data.birth_date,
+        cpf: data.cpf,
+        company: data.company,
+        position: data.position,
+        bio: data.bio,
+        avatar: data.avatar,
         plan: data.plans || null
       };
 
