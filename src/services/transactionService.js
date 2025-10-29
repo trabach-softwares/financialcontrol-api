@@ -3,6 +3,9 @@ import { supabaseAdmin } from '../config/supabase.js';
 export const transactionService = {
   async create(userId, transactionData) {
     try {
+      const normalizeDate = (d) => (d ? String(d).slice(0, 10) : new Date().toISOString().slice(0,10))
+      const normalizePaidAt = (d) => (d ? String(d).slice(0, 10) : new Date().toISOString().slice(0,10))
+
       const { data, error } = await supabaseAdmin
         .from('transactions')
         .insert([
@@ -12,7 +15,11 @@ export const transactionService = {
             amount: transactionData.amount,
             description: transactionData.description,
             category: transactionData.category,
-            date: transactionData.date || new Date().toISOString()
+            date: normalizeDate(transactionData.date),
+            paid: transactionData.paid === true,
+            paid_at: transactionData.paid === true
+              ? normalizePaidAt(transactionData.paidAt)
+              : null
           }
         ])
         .select()
@@ -23,6 +30,37 @@ export const transactionService = {
     } catch (error) {
       console.error('[transactionService.create] userId', userId, 'payload', transactionData, 'error', error?.message, error)
       throw error;
+    }
+  },
+
+  async createBulk(userId, transactionsArray = []) {
+    try {
+      const normalizeDate = (d) => (d ? String(d).slice(0, 10) : new Date().toISOString().slice(0,10))
+      const normalizePaidAt = (d) => (d ? String(d).slice(0, 10) : new Date().toISOString().slice(0,10))
+
+      const payload = (transactionsArray || []).map((t) => ({
+        user_id: userId,
+        type: t.type,
+        amount: t.amount,
+        description: t.description,
+        category: t.category,
+        date: normalizeDate(t.date),
+        paid: t.paid === true,
+        paid_at: t.paid === true ? normalizePaidAt(t.paidAt) : null,
+        series_id: t.seriesId || null,
+        installment_number: t.installmentNumber || null,
+        installment_total: t.installmentTotal || null,
+      }))
+
+      const { data, error } = await supabaseAdmin
+        .from('transactions')
+        .insert(payload)
+        .select()
+
+      if (error) throw error
+      return data
+    } catch (error) {
+      throw error
     }
   },
 
@@ -39,6 +77,10 @@ export const transactionService = {
 
       if (filters.category) {
         query = query.eq('category', filters.category);
+      }
+
+      if (typeof filters.paid === 'boolean') {
+        query = query.eq('paid', filters.paid);
       }
 
       if (filters.startDate) {
@@ -77,7 +119,7 @@ export const transactionService = {
 
   async getById(userId, transactionId) {
     try {
-      const { data, error } = await supabase
+      const { data, error } = await supabaseAdmin
         .from('transactions')
         .select('*')
         .eq('id', transactionId)
@@ -93,15 +135,31 @@ export const transactionService = {
 
   async update(userId, transactionId, transactionData) {
     try {
-      const { data, error } = await supabase
+      // Monta payload dinamicamente
+      const normalizeDate = (d) => (d ? String(d).slice(0, 10) : undefined)
+      const normalizePaidAt = (d) => (d ? String(d).slice(0, 10) : undefined)
+
+      const updatePayload = {
+        type: transactionData.type,
+        amount: transactionData.amount,
+        description: transactionData.description,
+        category: transactionData.category,
+        ...(transactionData.date ? { date: normalizeDate(transactionData.date) } : {}),
+      }
+
+      if (typeof transactionData.paid === 'boolean') {
+        updatePayload.paid = transactionData.paid
+        updatePayload.paid_at = transactionData.paid
+          ? (normalizePaidAt(transactionData.paidAt) || new Date().toISOString().slice(0,10))
+          : null
+      } else if (transactionData.paidAt) {
+        // caso apenas a data seja enviada, mantém paid como true
+        updatePayload.paid_at = normalizePaidAt(transactionData.paidAt)
+      }
+
+      const { data, error } = await supabaseAdmin
         .from('transactions')
-        .update({
-          type: transactionData.type,
-          amount: transactionData.amount,
-          description: transactionData.description,
-          category: transactionData.category,
-          date: transactionData.date
-        })
+        .update(updatePayload)
         .eq('id', transactionId)
         .eq('user_id', userId)
         .select()
@@ -116,7 +174,7 @@ export const transactionService = {
 
   async delete(userId, transactionId) {
     try {
-      const { error } = await supabase
+      const { error } = await supabaseAdmin
         .from('transactions')
         .delete()
         .eq('id', transactionId)
@@ -129,20 +187,28 @@ export const transactionService = {
     }
   },
 
-  async getStats(userId) {
+  async getStats(userId, { startDate, endDate } = {}) {
     try {
-      const { data: transactions, error } = await supabase
+      let query = supabaseAdmin
         .from('transactions')
-        .select('type, amount')
+        .select('type, amount, date')
         .eq('user_id', userId);
 
+      if (startDate) {
+        query = query.gte('date', startDate);
+      }
+      if (endDate) {
+        query = query.lte('date', endDate);
+      }
+
+      const { data: transactions, error } = await query;
       if (error) throw error;
 
-      const income = transactions
+      const income = (transactions || [])
         .filter(t => t.type === 'income')
         .reduce((sum, t) => sum + parseFloat(t.amount), 0);
 
-      const expense = transactions
+      const expense = (transactions || [])
         .filter(t => t.type === 'expense')
         .reduce((sum, t) => sum + parseFloat(t.amount), 0);
 
@@ -150,7 +216,7 @@ export const transactionService = {
         income,
         expense,
         balance: income - expense,
-        totalTransactions: transactions.length
+        totalTransactions: (transactions || []).length
       };
     } catch (error) {
       throw error;
@@ -180,7 +246,7 @@ export const transactionService = {
           startDate.setMonth(now.getMonth() - 6);
       }
 
-      const { data: transactions, error } = await supabase
+      const { data: transactions, error } = await supabaseAdmin
         .from('transactions')
         .select('date, type, amount')
         .eq('user_id', userId)
@@ -219,6 +285,33 @@ export const transactionService = {
       return timeline;
     } catch (error) {
       throw error;
+    }
+  },
+
+  async deleteSeriesForward(userId, seriesId, fromDate) {
+    try {
+      if (!seriesId) {
+        throw new Error('seriesId is required')
+      }
+      const normalizeDate = (d) => (d ? String(d).slice(0, 10) : null)
+
+      let query = supabaseAdmin
+        .from('transactions')
+        .delete()
+        .eq('user_id', userId)
+        .eq('series_id', seriesId)
+
+      const d = normalizeDate(fromDate)
+      if (d) {
+        query = query.gte('date', d)
+      }
+
+      // Return deleted rows to compute count
+      const { data, error } = await query.select()
+      if (error) throw error
+      return Array.isArray(data) ? data.length : 0
+    } catch (error) {
+      throw error
     }
   }
 };

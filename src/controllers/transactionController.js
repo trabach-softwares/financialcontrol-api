@@ -10,7 +10,6 @@ export const transactionController = {
       if (!type || !amount) {
         return sendError(res, 'Type and amount are required', 400);
       }
-
       if (!['income', 'expense'].includes(type)) {
         return sendError(res, 'Type must be either "income" or "expense"', 400);
       }
@@ -31,15 +30,29 @@ export const transactionController = {
     }
   },
 
+  async createBulk(req, res) {
+    try {
+      const payload = Array.isArray(req.body) ? req.body : (req.body?.transactions || [])
+      if (!Array.isArray(payload) || payload.length === 0) {
+        return sendError(res, 'Transactions array is required', 400)
+      }
+      const created = await transactionService.createBulk(req.user.id, payload)
+      return sendSuccess(res, created, 'Transactions created successfully', 201)
+    } catch (error) {
+      return sendError(res, error.message || 'Failed to create transactions', 400)
+    }
+  },
+
   async getAll(req, res) {
     try {
-      const { type, category, startDate, endDate, limit, sort, page } = req.query;
+      const { type, category, startDate, endDate, limit, sort, page, paid } = req.query;
       
       const transactions = await transactionService.getAll(req.user.id, {
         type,
         category,
         startDate,
         endDate,
+        paid: typeof paid === 'string' && paid !== '' ? paid === 'true' : undefined,
         limit: limit ? parseInt(limit) : undefined,
         sort,
         page: page ? parseInt(page) : undefined
@@ -102,7 +115,8 @@ export const transactionController = {
 
   async getStats(req, res) {
     try {
-      const stats = await transactionService.getStats(req.user.id);
+      const { startDate, endDate } = req.query;
+      const stats = await transactionService.getStats(req.user.id, { startDate, endDate });
       return sendSuccess(res, stats, 'Statistics retrieved successfully');
     } catch (error) {
       return sendError(res, error.message || 'Failed to retrieve statistics', 400);
@@ -116,6 +130,70 @@ export const transactionController = {
       return sendSuccess(res, timeline, 'Timeline retrieved successfully');
     } catch (error) {
       return sendError(res, error.message || 'Failed to retrieve statistics', 400);
+    }
+  }
+  ,
+  async markPaid(req, res) {
+    try {
+      const { id } = req.params;
+      const { paid, paidAt } = req.body;
+      if (typeof paid !== 'boolean') {
+        return sendError(res, 'Field "paid" must be boolean', 400);
+      }
+
+      const tx = await transactionService.update(req.user.id, id, { paid, paidAt });
+      if (!tx) {
+        return sendError(res, 'Transaction not found', 404);
+      }
+      return sendSuccess(res, tx, 'Transaction paid status updated successfully');
+    } catch (error) {
+      return sendError(res, error.message || 'Failed to update paid status', 400);
+    }
+  }
+  ,
+  async getSeries(req, res) {
+    try {
+      const { seriesId } = req.params
+      const series = await transactionService.getSeries(req.user.id, seriesId)
+      return sendSuccess(res, series, 'Series retrieved successfully')
+    } catch (error) {
+      return sendError(res, error.message || 'Failed to retrieve series', 400)
+    }
+  }
+  ,
+  async updateSeries(req, res) {
+    try {
+      const { seriesId } = req.params
+      const payload = req.body || {}
+      const updated = await transactionService.updateSeries(req.user.id, seriesId, payload)
+      return sendSuccess(res, updated, 'Series updated successfully')
+    } catch (error) {
+      return sendError(res, error.message || 'Failed to update series', 400)
+    }
+  }
+  ,
+  async markSeriesPaidForward(req, res) {
+    try {
+      const { seriesId } = req.params
+      const { fromDate, paid, paidAt } = req.body
+      if (typeof paid !== 'boolean') {
+        return sendError(res, 'Field "paid" must be boolean', 400)
+      }
+      const result = await transactionService.markSeriesPaidForward(req.user.id, seriesId, { fromDate, paid, paidAt })
+      return sendSuccess(res, result, 'Series paid status updated successfully')
+    } catch (error) {
+      return sendError(res, error.message || 'Failed to update series paid status', 400)
+    }
+  }
+  ,
+  async deleteSeriesForward(req, res) {
+    try {
+      const { seriesId } = req.params
+      const { fromDate } = req.query
+      const result = await transactionService.deleteSeriesForward(req.user.id, seriesId, fromDate)
+      return sendSuccess(res, { deleted: result }, 'Series installments deleted successfully')
+    } catch (error) {
+      return sendError(res, error.message || 'Failed to delete series installments', 400)
     }
   }
 };
