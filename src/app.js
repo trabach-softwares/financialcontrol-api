@@ -15,6 +15,7 @@ import authRoutes from './routes/authRoutes.js';
 import transactionRoutes from './routes/transactionRoutes.js';
 import userRoutes from './routes/userRoutes.js';
 import planRoutes from './routes/planRoutes.js';
+import categoryRoutes from './routes/categoryRoutes.js';
 import adminRoutes from './routes/adminRoutes.js';
 import userProfileRoutes from './routes/userProfileRoutes.js';
 
@@ -79,6 +80,7 @@ app.use('/api/transactions', transactionRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/users', userProfileRoutes); // Profile routes
 app.use('/api/plans', planRoutes);
+app.use('/api/categories', categoryRoutes);
 app.use('/api/admin', adminRoutes);
 
 // 404 handler

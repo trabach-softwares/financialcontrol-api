@@ -4,6 +4,7 @@ import { sendSuccess, sendError } from '../utils/response.js';
 export const transactionController = {
   async create(req, res) {
     try {
+      console.debug('[transactions:create] user', req.user?.id, 'body', req.body)
       const { type, amount, description, category, date } = req.body;
 
       if (!type || !amount) {
@@ -22,8 +23,10 @@ export const transactionController = {
         date
       });
 
+      console.debug('[transactions:create] created', transaction)
       return sendSuccess(res, transaction, 'Transaction created successfully', 201);
     } catch (error) {
+      console.error('[transactions:create] error', error?.message, error)
       return sendError(res, error.message || 'Failed to create transaction', 400);
     }
   },

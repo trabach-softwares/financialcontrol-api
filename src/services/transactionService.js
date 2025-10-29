@@ -1,9 +1,9 @@
-import { supabase } from '../config/supabase.js';
+import { supabaseAdmin } from '../config/supabase.js';
 
 export const transactionService = {
   async create(userId, transactionData) {
     try {
-      const { data, error } = await supabase
+      const { data, error } = await supabaseAdmin
         .from('transactions')
         .insert([
           {
@@ -21,13 +21,14 @@ export const transactionService = {
       if (error) throw error;
       return data;
     } catch (error) {
+      console.error('[transactionService.create] userId', userId, 'payload', transactionData, 'error', error?.message, error)
       throw error;
     }
   },
 
   async getAll(userId, filters = {}) {
     try {
-      let query = supabase
+      let query = supabaseAdmin
         .from('transactions')
         .select('*')
         .eq('user_id', userId);
@@ -161,7 +162,7 @@ export const transactionService = {
       // Calcular data de início baseada no período
       const now = new Date();
       let startDate = new Date();
-      
+
       switch (period) {
         case '1month':
           startDate.setMonth(now.getMonth() - 1);
@@ -190,14 +191,14 @@ export const transactionService = {
 
       // Agrupar por mês
       const monthlyData = {};
-      
+
       transactions.forEach(t => {
         const month = new Date(t.date).toISOString().slice(0, 7); // YYYY-MM
-        
+
         if (!monthlyData[month]) {
           monthlyData[month] = { income: 0, expense: 0 };
         }
-        
+
         if (t.type === 'income') {
           monthlyData[month].income += parseFloat(t.amount);
         } else {
