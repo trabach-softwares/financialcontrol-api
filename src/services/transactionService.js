@@ -218,6 +218,7 @@ export const transactionService = {
         balance: income - expense,
         totalTransactions: (transactions || []).length
       };
+
     } catch (error) {
       throw error;
     }

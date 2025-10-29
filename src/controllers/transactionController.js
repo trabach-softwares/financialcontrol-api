@@ -190,9 +190,12 @@ export const transactionController = {
     try {
       const { seriesId } = req.params
       const { fromDate } = req.query
+      console.debug('[transactions:series:deleteForward] user', req.user?.id, 'seriesId', seriesId, 'fromDate', fromDate)
       const result = await transactionService.deleteSeriesForward(req.user.id, seriesId, fromDate)
+      console.debug('[transactions:series:deleteForward] deleted count', result)
       return sendSuccess(res, { deleted: result }, 'Series installments deleted successfully')
     } catch (error) {
+      console.error('[transactions:series:deleteForward] error', error?.message, error)
       return sendError(res, error.message || 'Failed to delete series installments', 400)
     }
   }
