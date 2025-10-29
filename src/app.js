@@ -18,6 +18,7 @@ import planRoutes from './routes/planRoutes.js';
 import categoryRoutes from './routes/categoryRoutes.js';
 import adminRoutes from './routes/adminRoutes.js';
 import userProfileRoutes from './routes/userProfileRoutes.js';
+import accountRoutes from './routes/accountRoutes.js';
 
 dotenv.config();
 
@@ -82,6 +83,7 @@ app.use('/api/users', userProfileRoutes); // Profile routes
 app.use('/api/plans', planRoutes);
 app.use('/api/categories', categoryRoutes);
 app.use('/api/admin', adminRoutes);
+app.use('/api/accounts', accountRoutes);
 
 // 404 handler
 app.use((req, res) => {

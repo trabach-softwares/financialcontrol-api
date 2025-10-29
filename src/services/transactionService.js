@@ -1,4 +1,68 @@
 import { supabaseAdmin } from '../config/supabase.js';
+import { accountService } from './accountService.js';
+import { generateAccountStatementReport } from './reportService.js';
+
+const toNumber = (value, fallback = 0) => {
+  if (value === null || value === undefined || value === '') return fallback;
+  const parsed = Number(value);
+  return Number.isNaN(parsed) ? fallback : parsed;
+};
+
+const sanitizeTransaction = (row = {}) => ({
+  id: row.id,
+  userId: row.user_id,
+  accountId: row.account_id,
+  type: row.type,
+  amount: toNumber(row.amount, 0),
+  description: row.description || null,
+  category: row.category || null,
+  date: row.date,
+  paid: Boolean(row.paid),
+  paidAt: row.paid_at,
+  createdAt: row.created_at,
+  updatedAt: row.updated_at,
+});
+
+const normalizeDateParam = (value) => {
+  if (!value) return undefined;
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return undefined;
+  return date.toISOString().slice(0, 10);
+};
+
+const applyStatementFilters = (query, filters = {}) => {
+  const { type, category, startDate, endDate, search } = filters;
+
+  if (type) {
+    query = query.eq('type', type);
+  }
+
+  if (category) {
+    query = query.eq('category', category);
+  }
+
+  if (startDate) {
+    query = query.gte('date', startDate);
+  }
+
+  if (endDate) {
+    query = query.lte('date', endDate);
+  }
+
+  if (search) {
+    query = query.ilike('description', `%${search}%`);
+  }
+
+  return query;
+};
+
+const sumTransactions = (rows = [], targetType) =>
+  rows.reduce((total, row) => {
+    if (row.type === targetType) {
+      total += toNumber(row.amount, 0);
+    }
+    return total;
+  }, 0);
 
 export const transactionService = {
   async create(userId, transactionData) {
@@ -15,6 +79,7 @@ export const transactionService = {
             amount: transactionData.amount,
             description: transactionData.description,
             category: transactionData.category,
+            account_id: transactionData.accountId || null,
             date: normalizeDate(transactionData.date),
             paid: transactionData.paid === true,
             paid_at: transactionData.paid === true
@@ -44,6 +109,7 @@ export const transactionService = {
         amount: t.amount,
         description: t.description,
         category: t.category,
+        account_id: t.accountId || null,
         date: normalizeDate(t.date),
         paid: t.paid === true,
         paid_at: t.paid === true ? normalizePaidAt(t.paidAt) : null,
@@ -77,6 +143,10 @@ export const transactionService = {
 
       if (filters.category) {
         query = query.eq('category', filters.category);
+      }
+
+      if (filters.accountId) {
+        query = query.eq('account_id', filters.accountId);
       }
 
       if (typeof filters.paid === 'boolean') {
