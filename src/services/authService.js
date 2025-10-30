@@ -37,6 +37,12 @@ export const authService = {
 
       if (error) throw error;
 
+      try {
+        await supabaseAdmin.rpc('seed_default_account', { target_user: user.id });
+      } catch (seedError) {
+        console.warn('[authService.register] seed_default_account failed', seedError?.message);
+      }
+
       // Generate JWT token
       const token = jwt.sign(
         {

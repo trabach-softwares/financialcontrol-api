@@ -1,5 +1,34 @@
+import { celebrate, Joi, Segments } from 'celebrate';
 import { transactionService } from '../services/transactionService.js';
 import { sendSuccess, sendError } from '../utils/response.js';
+
+const accountIdParamSchema = Joi.string().guid({ version: 'uuidv4' }).required();
+
+const statementQuerySchema = Joi.object({
+  startDate: Joi.date().iso(),
+  endDate: Joi.date().iso().min(Joi.ref('startDate')),
+  type: Joi.string().valid('income', 'expense'),
+  category: Joi.string().max(150),
+  search: Joi.string().max(255),
+  page: Joi.number().integer().min(1),
+  pageSize: Joi.number().integer().min(1).max(500),
+  sort: Joi.string().valid('asc', 'desc'),
+}).unknown(false);
+
+const statementExportQuerySchema = statementQuerySchema.keys({
+  format: Joi.string().valid('csv', 'xlsx', 'pdf').default('csv'),
+});
+
+export const transactionValidators = {
+  accountStatement: celebrate({
+    [Segments.PARAMS]: Joi.object({ accountId: accountIdParamSchema }),
+    [Segments.QUERY]: statementQuerySchema,
+  }),
+  accountStatementExport: celebrate({
+    [Segments.PARAMS]: Joi.object({ accountId: accountIdParamSchema }),
+    [Segments.QUERY]: statementExportQuerySchema,
+  }),
+};
 
 export const transactionController = {
   async create(req, res) {
@@ -197,6 +226,32 @@ export const transactionController = {
     } catch (error) {
       console.error('[transactions:series:deleteForward] error', error?.message, error)
       return sendError(res, error.message || 'Failed to delete series installments', 400)
+    }
+  }
+  ,
+  async getAccountStatement(req, res) {
+    try {
+      const { accountId } = req.params;
+      const statement = await transactionService.getAccountStatement(req.user.id, accountId, req.query);
+      return sendSuccess(res, statement, 'Account statement retrieved successfully');
+    } catch (error) {
+      const status = error.statusCode || error.status || 400;
+      return sendError(res, error.message || 'Failed to retrieve account statement', status);
+    }
+  }
+  ,
+  async exportAccountStatement(req, res) {
+    try {
+      const { accountId } = req.params;
+      const report = await transactionService.exportAccountStatement(req.user.id, accountId, req.query);
+
+      res.setHeader('Content-Type', report.contentType);
+      res.setHeader('Content-Disposition', `attachment; filename="${report.filename}"`);
+
+      return res.status(200).send(report.data);
+    } catch (error) {
+      const status = error.statusCode || error.status || 400;
+      return sendError(res, error.message || 'Failed to export account statement', status);
     }
   }
 };
