@@ -438,6 +438,76 @@
       ]
     },
     {
+      "name": "Dashboard",
+      "item": [
+        {
+          "name": "Get Dashboard Stats",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/dashboard/stats",
+              "host": ["{{baseUrl}}"],
+              "path": ["dashboard", "stats"]
+            }
+          }
+        },
+        {
+          "name": "Get Dashboard Charts",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/dashboard/charts?period=6months",
+              "host": ["{{baseUrl}}"],
+              "path": ["dashboard", "charts"],
+              "query": [
+                {
+                  "key": "period",
+                  "value": "6months",
+                  "description": "Options: 1month, 3months, 6months, 1year"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Get Recent Transactions",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/dashboard/recent?limit=5",
+              "host": ["{{baseUrl}}"],
+              "path": ["dashboard", "recent"],
+              "query": [
+                {
+                  "key": "limit",
+                  "value": "5",
+                  "description": "Number of recent transactions to return"
+                }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
       "name": "Admin",
       "item": [
         {
