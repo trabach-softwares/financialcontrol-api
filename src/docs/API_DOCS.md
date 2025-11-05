@@ -650,6 +650,238 @@ Get platform statistics.
 
 ---
 
+## Payment Endpoints (Asaas Integration)
+
+### Create Payment
+**POST** `/payments`
+
+Create a new payment for a plan subscription.
+
+**Headers:** `Authorization: Bearer TOKEN`
+
+**Request Body (PIX or Boleto):**
+```json
+{
+  "planId": "uuid-do-plano",
+  "paymentMethod": "PIX"  // or "BOLETO"
+}
+```
+
+**Request Body (Credit Card):**
+```json
+{
+  "planId": "uuid-do-plano",
+  "paymentMethod": "CREDIT_CARD",
+  "creditCard": {
+    "number": "1234 5678 9012 3456",
+    "holderName": "João Silva",
+    "expiryDate": "12/2025",
+    "cvv": "123"
+  }
+}
+```
+
+**Response (PIX):** `201 Created`
+```json
+{
+  "success": true,
+  "data": {
+    "payment": {
+      "id": "pay_abc123",
+      "status": "PENDING",
+      "value": 99.90,
+      "dueDate": "2025-01-10T23:59:59Z",
+      "invoiceUrl": "https://www.asaas.com/i/abc123"
+    },
+    "pix": {
+      "qrCodeImage": "data:image/png;base64,iVBORw0KG...",
+      "payload": "00020126580014br.gov.bcb.pix...",
+      "expiresAt": "2025-01-05T12:00:00Z"
+    }
+  },
+  "message": "Pagamento criado com sucesso"
+}
+```
+
+**Response (Boleto):** `201 Created`
+```json
+{
+  "success": true,
+  "data": {
+    "payment": {
+      "id": "pay_abc123",
+      "status": "PENDING",
+      "value": 99.90,
+      "dueDate": "2025-01-10T23:59:59Z"
+    },
+    "boleto": {
+      "pdfUrl": "https://www.asaas.com/b/pdf/abc123",
+      "barcode": "34191.79001 01043.510047 91020.150008 1 84430000002000",
+      "bankSlipUrl": "https://www.asaas.com/b/abc123"
+    }
+  },
+  "message": "Pagamento criado com sucesso"
+}
+```
+
+**Response (Credit Card Approved):** `201 Created`
+```json
+{
+  "success": true,
+  "data": {
+    "payment": {
+      "id": "pay_abc123",
+      "status": "RECEIVED",
+      "value": 99.90,
+      "confirmedDate": "2025-01-04T10:30:00Z",
+      "transactionReceiptUrl": "https://www.asaas.com/r/abc123"
+    }
+  },
+  "message": "Pagamento criado com sucesso"
+}
+```
+
+### Get Payment Status
+**GET** `/payments/:paymentId`
+
+Retrieve the current status of a payment.
+
+**Headers:** `Authorization: Bearer TOKEN`
+
+**Response:** `200 OK`
+```json
+{
+  "success": true,
+  "data": {
+    "payment": {
+      "id": "pay_abc123",
+      "status": "RECEIVED",
+      "value": 99.90,
+      "paidAt": "2025-01-04T10:30:00Z",
+      "confirmedDate": "2025-01-04T10:30:00Z"
+    }
+  }
+}
+```
+
+**Payment Status Values:**
+- `PENDING` - Awaiting payment
+- `RECEIVED` - Payment received
+- `CONFIRMED` - Payment confirmed
+- `OVERDUE` - Payment overdue
+- `CANCELLED` - Payment cancelled
+- `REFUNDED` - Payment refunded
+
+### Get PIX QR Code
+**GET** `/payments/:paymentId/pix`
+
+Get the PIX QR Code for a payment.
+
+**Headers:** `Authorization: Bearer TOKEN`
+
+**Response:** `200 OK`
+```json
+{
+  "success": true,
+  "data": {
+    "qrCodeImage": "data:image/png;base64,iVBORw0KG...",
+    "payload": "00020126580014br.gov.bcb.pix...",
+    "expiresAt": "2025-01-05T12:00:00Z"
+  }
+}
+```
+
+### List User Payments
+**GET** `/payments`
+
+List all payments for the authenticated user.
+
+**Headers:** `Authorization: Bearer TOKEN`
+
+**Query Parameters (optional):**
+- `status` - Filter by status (PENDING, RECEIVED, CONFIRMED, etc.)
+- `limit` - Number of results (default: 20, max: 100)
+- `offset` - Pagination offset (default: 0)
+
+**Example:** `/payments?status=PENDING&limit=10`
+
+**Response:** `200 OK`
+```json
+{
+  "success": true,
+  "data": [
+    {
+      "id": "pay_abc123",
+      "planName": "Pro",
+      "value": 99.90,
+      "status": "RECEIVED",
+      "paymentMethod": "PIX",
+      "createdAt": "2025-01-04T09:00:00Z",
+      "paidAt": "2025-01-04T10:30:00Z"
+    }
+  ]
+}
+```
+
+### Cancel Payment
+**DELETE** `/payments/:paymentId`
+
+Cancel a pending payment.
+
+**Headers:** `Authorization: Bearer TOKEN`
+
+**Response:** `200 OK`
+```json
+{
+  "success": true,
+  "data": null,
+  "message": "Pagamento cancelado com sucesso"
+}
+```
+
+**Note:** Only payments with status `PENDING` can be cancelled.
+
+### Asaas Webhook (Internal)
+**POST** `/webhooks/asaas`
+
+Endpoint to receive payment notifications from Asaas.
+
+**Headers:**
+- `X-Asaas-Signature` or `asaas-access-token` - Webhook signature
+
+**Request Body:**
+```json
+{
+  "event": "PAYMENT_RECEIVED",
+  "payment": {
+    "id": "pay_abc123",
+    "customer": "cus_xyz789",
+    "value": 99.90,
+    "netValue": 98.91,
+    "status": "RECEIVED",
+    "billingType": "PIX",
+    "confirmedDate": "2025-01-04T10:30:00.000Z",
+    "externalReference": "user-uuid-here"
+  }
+}
+```
+
+**Response:** `200 OK`
+```json
+{
+  "received": true
+}
+```
+
+**Webhook Events:**
+- `PAYMENT_RECEIVED` - Payment received
+- `PAYMENT_CONFIRMED` - Payment confirmed
+- `PAYMENT_OVERDUE` - Payment overdue
+- `PAYMENT_DELETED` - Payment cancelled
+- `PAYMENT_REFUNDED` - Payment refunded
+
+---
+
 ## Error Codes
 
 - `200` - Success

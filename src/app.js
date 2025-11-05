@@ -20,6 +20,8 @@ import adminRoutes from './routes/adminRoutes.js';
 import userProfileRoutes from './routes/userProfileRoutes.js';
 import dashboardRoutes from './routes/dashboardRoutes.js';
 import accountRoutes from './routes/accountRoutes.js';
+import paymentRoutes from './routes/paymentRoutes.js';
+import webhookRoutes from './routes/webhookRoutes.js';
 
 dotenv.config();
 
@@ -86,6 +88,8 @@ app.use('/api/categories', categoryRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/dashboard', dashboardRoutes);
 app.use('/api/accounts', accountRoutes);
+app.use('/api/payments', paymentRoutes);
+app.use('/api/webhooks', webhookRoutes);
 
 // 404 handler
 app.use((req, res) => {

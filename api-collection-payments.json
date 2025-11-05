@@ -1,0 +1,147 @@
+{
+  "name": "Financial Control API - Payments",
+  "description": "Endpoints para integração de pagamentos via Asaas (PIX, Boleto, Cartão)",
+  "baseUrl": "http://localhost:3000/api",
+  "auth": {
+    "type": "bearer",
+    "bearer": "{{jwt_token}}"
+  },
+  "endpoints": [
+    {
+      "name": "1. Criar Pagamento PIX",
+      "method": "POST",
+      "url": "{{baseUrl}}/payments",
+      "headers": {
+        "Content-Type": "application/json",
+        "Authorization": "Bearer {{jwt_token}}"
+      },
+      "body": {
+        "planId": "uuid-do-plano",
+        "paymentMethod": "PIX"
+      }
+    },
+    {
+      "name": "2. Criar Pagamento Boleto",
+      "method": "POST",
+      "url": "{{baseUrl}}/payments",
+      "headers": {
+        "Content-Type": "application/json",
+        "Authorization": "Bearer {{jwt_token}}"
+      },
+      "body": {
+        "planId": "uuid-do-plano",
+        "paymentMethod": "BOLETO"
+      }
+    },
+    {
+      "name": "3. Criar Pagamento Cartão",
+      "method": "POST",
+      "url": "{{baseUrl}}/payments",
+      "headers": {
+        "Content-Type": "application/json",
+        "Authorization": "Bearer {{jwt_token}}"
+      },
+      "body": {
+        "planId": "uuid-do-plano",
+        "paymentMethod": "CREDIT_CARD",
+        "creditCard": {
+          "number": "5162306260253648",
+          "holderName": "TESTE CARTAO",
+          "expiryDate": "12/2030",
+          "cvv": "123"
+        }
+      }
+    },
+    {
+      "name": "4. Consultar Pagamento",
+      "method": "GET",
+      "url": "{{baseUrl}}/payments/{{paymentId}}",
+      "headers": {
+        "Authorization": "Bearer {{jwt_token}}"
+      }
+    },
+    {
+      "name": "5. Obter QR Code PIX",
+      "method": "GET",
+      "url": "{{baseUrl}}/payments/{{paymentId}}/pix",
+      "headers": {
+        "Authorization": "Bearer {{jwt_token}}"
+      }
+    },
+    {
+      "name": "6. Listar Todos Pagamentos",
+      "method": "GET",
+      "url": "{{baseUrl}}/payments",
+      "headers": {
+        "Authorization": "Bearer {{jwt_token}}"
+      }
+    },
+    {
+      "name": "7. Listar Pagamentos Pendentes",
+      "method": "GET",
+      "url": "{{baseUrl}}/payments?status=PENDING&limit=20",
+      "headers": {
+        "Authorization": "Bearer {{jwt_token}}"
+      }
+    },
+    {
+      "name": "8. Listar Pagamentos Recebidos",
+      "method": "GET",
+      "url": "{{baseUrl}}/payments?status=RECEIVED&limit=20",
+      "headers": {
+        "Authorization": "Bearer {{jwt_token}}"
+      }
+    },
+    {
+      "name": "9. Cancelar Pagamento",
+      "method": "DELETE",
+      "url": "{{baseUrl}}/payments/{{paymentId}}",
+      "headers": {
+        "Authorization": "Bearer {{jwt_token}}"
+      }
+    },
+    {
+      "name": "10. Webhook Asaas (Simulação)",
+      "method": "POST",
+      "url": "{{baseUrl}}/webhooks/asaas",
+      "headers": {
+        "Content-Type": "application/json",
+        "asaas-access-token": "{{webhook_secret}}"
+      },
+      "body": {
+        "event": "PAYMENT_RECEIVED",
+        "payment": {
+          "id": "pay_abc123",
+          "customer": "cus_xyz789",
+          "value": 99.90,
+          "netValue": 98.91,
+          "status": "RECEIVED",
+          "billingType": "PIX",
+          "paymentDate": "2025-01-04T10:30:00.000Z",
+          "confirmedDate": "2025-01-04T10:30:00.000Z",
+          "externalReference": "user-uuid-here"
+        }
+      }
+    }
+  ],
+  "variables": {
+    "baseUrl": "http://localhost:3000/api",
+    "jwt_token": "cole_seu_token_jwt_aqui",
+    "paymentId": "pay_abc123",
+    "webhook_secret": "sua_chave_secreta_webhook"
+  },
+  "tests": {
+    "cartaoAprovado": {
+      "numero": "5162306260253648",
+      "nome": "TESTE APROVADO",
+      "validade": "12/2030",
+      "cvv": "123"
+    },
+    "cartaoRecusado": {
+      "numero": "5162306260253621",
+      "nome": "TESTE RECUSADO",
+      "validade": "12/2030",
+      "cvv": "123"
+    }
+  }
+}
