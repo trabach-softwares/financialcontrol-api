@@ -7,6 +7,7 @@ REST API para SaaS de Financial Control com Node.js, Express e Supabase (Postgre
 - **Autenticação JWT** - Login e registro seguros
 - **CRUD Completo de Transações** - Gerenciamento de receitas e despesas
 - **Sistema de Planos** - Suporte para diferentes níveis de assinatura
+- **💳 Pagamentos Asaas** - PIX, Boleto e Cartão de Crédito
 - **Painel Administrativo** - Gestão de usuários e estatísticas
 - **RLS do Supabase** - Segurança em nível de banco de dados
 - **Estrutura Modular** - Routes/Controllers/Services
@@ -202,12 +203,44 @@ npm run dev
 npm start
 ```
 
-## 📦 Dependências Principais
+## � Integração de Pagamentos
+
+Esta API possui integração completa com **Asaas** (gateway brasileiro) para processar:
+- ✅ **PIX** - QR Code gerado automaticamente
+- ✅ **Boleto Bancário** - PDF e código de barras
+- ✅ **Cartão de Crédito** - Aprovação instantânea
+
+### Documentação de Pagamentos
+
+- 📘 **[PAYMENT_INTEGRATION.md](PAYMENT_INTEGRATION.md)** - Guia completo de integração
+- ⚡ **[QUICK_START_PAYMENTS.md](QUICK_START_PAYMENTS.md)** - Início rápido (5 minutos)
+- ✅ **[CHECKLIST.md](CHECKLIST.md)** - Passo a passo completo
+- 🔧 **[TROUBLESHOOTING.md](TROUBLESHOOTING.md)** - Solução de problemas
+- 📊 **[IMPLEMENTATION_SUMMARY.md](IMPLEMENTATION_SUMMARY.md)** - Resumo da implementação
+
+### Configuração Rápida
+
+1. Obter credenciais no [Asaas Sandbox](https://sandbox.asaas.com)
+2. Adicionar ao `.env`:
+```env
+ASAAS_API_KEY=sua_api_key_aqui
+ASAAS_ENVIRONMENT=sandbox
+ASAAS_WEBHOOK_SECRET=sua_chave_webhook
+```
+3. Executar migrations do banco (`migrations/`)
+4. Testar endpoints de pagamento
+
+Consulte **[QUICK_START_PAYMENTS.md](QUICK_START_PAYMENTS.md)** para instruções detalhadas.
+
+---
+
+## �📦 Dependências Principais
 
 - **express** - Framework web
 - **@supabase/supabase-js** - Cliente Supabase
 - **jsonwebtoken** - Autenticação JWT
 - **bcryptjs** - Hash de senhas
+- **axios** - Cliente HTTP para Asaas
 - **cors** - Cross-Origin Resource Sharing
 - **helmet** - Segurança HTTP
 - **morgan** - Logging HTTP
