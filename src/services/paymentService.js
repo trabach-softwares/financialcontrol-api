@@ -6,7 +6,7 @@
 import axios from 'axios';
 import crypto from 'crypto';
 import { asaasConfig } from '../config/asaas.js';
-import { supabase } from '../config/supabase.js';
+import { supabaseAdmin as supabase } from '../config/supabase.js';
 
 class PaymentService {
   /**

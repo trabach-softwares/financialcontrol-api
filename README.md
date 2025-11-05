@@ -5,7 +5,33 @@ REST API para SaaS de Financial Control com Node.js, Express e Supabase (Postgre
 ## 🚀 Características
 
 - **Autenticação JWT** - Login e registro seguros
-- **CRUD Completo de Transações** - Gerenciamento de receitas e despesas
+- **CRUD Completo de Transações** - GerenciaConsulte **[QUICK_START_PAYMENTS.md](QUICK_START_PAYMENTS.md)** para instruções detalhadas.
+
+---
+
+## 🧪 Testando em Produção
+
+Após o deploy, teste sua API com:
+
+### Opção 1: Script Automatizado (Recomendado)
+```bash
+./test-payment.sh
+```
+Testa o fluxo completo automaticamente: registro → login → criar pagamento PIX → aguardar confirmação → verificar ativação do plano.
+
+### Opção 2: Teste Manual
+Consulte os guias:
+- 🚀 **[QUICK_TEST.md](QUICK_TEST.md)** - Guia rápido de início
+- 🧪 **[TESTES_PRODUCAO.md](TESTES_PRODUCAO.md)** - Guia completo de testes
+- 🔗 **[CURL_EXAMPLES.md](CURL_EXAMPLES.md)** - Exemplos prontos de cURL
+- 🔔 **[WEBHOOK_CONFIG.md](WEBHOOK_CONFIG.md)** - Configurar webhook no Asaas
+
+### Opção 3: Postman/Insomnia
+Importe a collection: `api-collection-payments.json`
+
+---
+
+## 📦 Dependências Principais de receitas e despesas
 - **Sistema de Planos** - Suporte para diferentes níveis de assinatura
 - **💳 Pagamentos Asaas** - PIX, Boleto e Cartão de Crédito
 - **Painel Administrativo** - Gestão de usuários e estatísticas
