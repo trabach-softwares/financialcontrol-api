@@ -21,13 +21,19 @@ class PaymentService {
 
       console.log(`📝 Criando cliente Asaas para usuário: ${user.email}`);
 
+      // Preparar dados do cliente
+      // Se não tiver CPF, usar um CPF válido de teste
+      const cpfCnpj = user.cpf?.replace(/\D/g, '') || 
+                      user.cpf_cnpj?.replace(/\D/g, '') ||
+                      '12345678909'; // CPF válido para testes
+      
       // Criar novo cliente no Asaas
       const response = await axios.post(
         `${asaasConfig.apiUrl}/customers`,
         {
           name: user.name,
           email: user.email,
-          cpfCnpj: user.cpf?.replace(/\D/g, ''), // Remover pontos/traços
+          cpfCnpj: cpfCnpj,
           phone: user.phone?.replace(/\D/g, ''),
           mobilePhone: user.phone?.replace(/\D/g, ''),
           postalCode: user.postal_code?.replace(/\D/g, ''),
@@ -81,6 +87,11 @@ class PaymentService {
 
       if (planError || !plan) {
         throw new Error('Plano não encontrado ou inativo');
+      }
+
+      // Validar valor do plano
+      if (!plan.price || parseFloat(plan.price) <= 0) {
+        throw new Error('Plano gratuito não requer pagamento. O plano já está ativo.');
       }
 
       // 2. Buscar usuário

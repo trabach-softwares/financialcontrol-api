@@ -17,7 +17,7 @@ API_URL="https://api.financialcontrol.com.br"
 TEST_EMAIL="teste-$(date +%s)@exemplo.com"
 TEST_PASSWORD="Senha123!"
 TEST_NAME="Usuário Teste Automatizado"
-TEST_CPF="12345678901"
+TEST_CPF="12345678909"  # CPF válido para testes
 
 echo -e "${BLUE}========================================${NC}"
 echo -e "${BLUE}🧪 TESTE AUTOMATIZADO - PAGAMENTO PIX${NC}"
@@ -63,11 +63,38 @@ PLANS_RESPONSE=$(curl -s -X GET "$API_URL/api/plans" \
     -H "Authorization: Bearer $TOKEN")
 
 if echo "$PLANS_RESPONSE" | grep -q "\"success\":true"; then
-    PLAN_ID=$(echo "$PLANS_RESPONSE" | grep -o '"id":"[^"]*' | head -1 | cut -d'"' -f4)
-    PLAN_NAME=$(echo "$PLANS_RESPONSE" | grep -o '"name":"[^"]*' | head -1 | cut -d'"' -f4)
-    PLAN_PRICE=$(echo "$PLANS_RESPONSE" | grep -o '"price":[0-9.]*' | head -1 | cut -d':' -f2)
     echo -e "${GREEN}✅ Planos encontrados${NC}"
-    echo -e "   Plano: $PLAN_NAME"
+    
+    # Mostrar todos os planos
+    echo "$PLANS_RESPONSE" | grep -o '"name":"[^"]*' | cut -d'"' -f4 | nl
+    echo ""
+    
+    # Procurar primeiro plano PAGO (price > 0)
+    # Analisar JSON para encontrar plano com price > 0
+    PLAN_DATA=$(echo "$PLANS_RESPONSE" | grep -o '"id":"[^"]*","name":"[^"]*","description":"[^"]*","price":[0-9.]*' | grep -v '"price":0' | head -1)
+    
+    if [ -z "$PLAN_DATA" ]; then
+        # Fallback: pegar qualquer plano e deixar validação pegar
+        PLAN_ID=$(echo "$PLANS_RESPONSE" | grep -o '"id":"[^"]*' | head -1 | cut -d'"' -f4)
+        PLAN_NAME=$(echo "$PLANS_RESPONSE" | grep -o '"name":"[^"]*' | head -1 | cut -d'"' -f4)
+        PLAN_PRICE="0"
+    else
+        PLAN_ID=$(echo "$PLAN_DATA" | grep -o '"id":"[^"]*' | cut -d'"' -f4)
+        PLAN_NAME=$(echo "$PLAN_DATA" | grep -o '"name":"[^"]*' | cut -d'"' -f4)
+        PLAN_PRICE=$(echo "$PLAN_DATA" | grep -o '"price":[0-9.]*' | cut -d':' -f2)
+    fi
+    
+    # Verificar se o plano é gratuito
+    if [ "$PLAN_PRICE" = "0" ] || [ "$PLAN_PRICE" = "0.00" ]; then
+        echo -e "${RED}⚠️  ATENÇÃO: Plano selecionado é GRATUITO (R$ 0)${NC}"
+        echo -e "${YELLOW}   Asaas não aceita pagamentos de R$ 0${NC}"
+        echo -e "${YELLOW}   Por favor, crie um plano pago no banco de dados${NC}"
+        echo -e "${YELLOW}   Exemplo: INSERT INTO plans (name, price, billing_cycle, is_active)${NC}"
+        echo -e "${YELLOW}            VALUES ('Teste', 1.00, 'monthly', true);${NC}\n"
+        exit 1
+    fi
+    
+    echo -e "   Plano selecionado: $PLAN_NAME"
     echo -e "   Preço: R$ $PLAN_PRICE"
     echo -e "   ID: $PLAN_ID\n"
 else
