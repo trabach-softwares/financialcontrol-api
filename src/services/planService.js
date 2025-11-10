@@ -15,6 +15,21 @@ export const planService = {
     }
   },
 
+  async getVisiblePlans() {
+    try {
+      const { data, error } = await supabaseAdmin
+        .from('plans')
+        .select('*')
+        .eq('is_active', true)
+        .order('price', { ascending: true });
+
+      if (error) throw error;
+      return data;
+    } catch (error) {
+      throw error;
+    }
+  },
+
   async getById(planId) {
     try {
       const { data, error } = await supabaseAdmin

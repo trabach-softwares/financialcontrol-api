@@ -15,6 +15,7 @@ import authRoutes from './routes/authRoutes.js';
 import transactionRoutes from './routes/transactionRoutes.js';
 import userRoutes from './routes/userRoutes.js';
 import planRoutes from './routes/planRoutes.js';
+import publicPlanRoutes from './routes/publicPlanRoutes.js';
 import categoryRoutes from './routes/categoryRoutes.js';
 import adminRoutes from './routes/adminRoutes.js';
 import userProfileRoutes from './routes/userProfileRoutes.js';
@@ -79,6 +80,10 @@ app.get('/api/health', (req, res) => {
 });
 
 // API Routes
+// Public routes (sem autenticação)
+app.use('/api/public/plans', publicPlanRoutes);
+
+// Protected routes (com autenticação)
 app.use('/api/auth', authRoutes);
 app.use('/api/transactions', transactionRoutes);
 app.use('/api/users', userRoutes);
