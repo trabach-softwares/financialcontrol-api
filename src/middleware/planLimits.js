@@ -12,21 +12,24 @@ import { sendError } from '../utils/response.js';
 export const checkTransactionLimit = async (req, res, next) => {
   try {
     const userId = req.user.id;
-    const check = await planLimitsService.canCreateTransaction(userId);
+    const transactionDate = req.body.date; // Data da transação que está sendo criada
+    
+    const check = await planLimitsService.canCreateTransaction(userId, transactionDate);
 
     if (!check.allowed) {
-      console.log(`🚫 [PLAN_LIMIT] Usuário ${userId} atingiu limite de transações (${check.current}/${check.limit}) - Plano: ${check.planName}`);
+      console.log(`🚫 [PLAN_LIMIT] Usuário ${userId} atingiu limite de transações (${check.current}/${check.limit}) - Plano: ${check.planName} - Mês: ${check.monthYear}`);
       
       return sendError(res, 'Limite de transações atingido', 403, {
         current: check.current,
         limit: check.limit,
         planName: check.planName,
-        message: `Você atingiu o limite de ${check.limit} transações/mês do plano ${check.planName}. Faça upgrade para criar mais transações.`,
+        monthYear: check.monthYear,
+        message: `Você atingiu o limite de ${check.limit} transações/mês do plano ${check.planName} para ${check.monthYear}. Faça upgrade para criar mais transações.`,
         upgradeRequired: true
       });
     }
 
-    console.log(`✅ [PLAN_LIMIT] Transação permitida para usuário ${userId} (${check.current}/${check.limit}) - Plano: ${check.planName}`);
+    console.log(`✅ [PLAN_LIMIT] Transação permitida para usuário ${userId} (${check.current}/${check.limit}) - Plano: ${check.planName} - Mês: ${check.monthYear}`);
     
     // Adiciona informações ao request para uso posterior
     req.planLimitInfo = check;

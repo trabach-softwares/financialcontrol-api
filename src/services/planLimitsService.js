@@ -138,8 +138,10 @@ class PlanLimitsService {
 
   /**
    * Verifica se o usuário pode criar uma transação
+   * @param {string} userId - ID do usuário
+   * @param {string} transactionDate - Data da transação (YYYY-MM-DD) que está sendo criada
    */
-  async canCreateTransaction(userId) {
+  async canCreateTransaction(userId, transactionDate = null) {
     try {
       const plan = await this.getUserPlan(userId);
       const limits = this.getPlanLimits(plan); // Passa o objeto plan completo
@@ -149,29 +151,53 @@ class PlanLimitsService {
         return { allowed: true };
       }
 
-      // Contar transações do mês atual
-      const now = new Date();
-      const firstDayOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
-      const lastDayOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59);
+      // Determina qual mês contar: o mês da transação sendo criada, ou mês atual se não fornecida
+      let targetDate;
+      if (transactionDate) {
+        targetDate = new Date(transactionDate);
+      } else {
+        targetDate = new Date(); // Fallback para data atual
+      }
+      
+      const year = targetDate.getFullYear();
+      const month = targetDate.getMonth(); // 0-11
+      
+      // Primeiro dia do mês: YYYY-MM-01
+      const startDate = `${year}-${String(month + 1).padStart(2, '0')}-01`;
+      
+      // Último dia do mês: calcular corretamente
+      const lastDay = new Date(year, month + 1, 0).getDate();
+      const endDate = `${year}-${String(month + 1).padStart(2, '0')}-${String(lastDay).padStart(2, '0')}`;
+
+      // Formatar mês/ano para exibição
+      const monthNames = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
+      const monthYear = `${monthNames[month]}/${year}`;
+
+      console.log(`📊 [PLAN_LIMIT] Verificando transações para usuário ${userId}`);
+      console.log(`   Mês de referência: ${monthYear}`);
+      console.log(`   Período: ${startDate} até ${endDate}`);
 
       const { count, error } = await supabaseAdmin
         .from('transactions')
         .select('*', { count: 'exact', head: true })
         .eq('user_id', userId)
-        .gte('date', firstDayOfMonth.toISOString())
-        .lte('date', lastDayOfMonth.toISOString());
+        .gte('date', startDate)
+        .lte('date', endDate);
 
       if (error) throw error;
 
       const currentCount = count || 0;
       const allowed = currentCount < limits.maxTransactions;
 
+      console.log(`   Resultado: ${currentCount}/${limits.maxTransactions} transações no mês`);
+
       return {
         allowed,
         current: currentCount,
         limit: limits.maxTransactions,
         remaining: limits.maxTransactions - currentCount,
-        planName: plan.name
+        planName: plan.name,
+        monthYear
       };
     } catch (error) {
       console.error('❌ Erro ao verificar limite de transações:', error);
