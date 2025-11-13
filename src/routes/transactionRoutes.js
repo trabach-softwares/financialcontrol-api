@@ -2,6 +2,7 @@ import express from 'express';
 import { transactionController } from '../controllers/transactionController.js';
 import { authenticateToken } from '../middleware/auth.js';
 import { apiLimiter } from '../middleware/rateLimiter.js';
+import { checkTransactionLimit } from '../middleware/planLimits.js';
 
 const router = express.Router();
 
@@ -9,13 +10,13 @@ const router = express.Router();
 router.use(authenticateToken);
 router.use(apiLimiter);
 
-router.post('/', transactionController.create);
+router.post('/', checkTransactionLimit, transactionController.create);
 router.get('/', transactionController.getAll);
 router.get('/stats', transactionController.getStats);
 router.get('/timeline', transactionController.getTimeline);
 router.patch('/:id/paid', transactionController.markPaid);
 // Series (installments)
-router.post('/series', transactionController.createBulk);
+router.post('/series', checkTransactionLimit, transactionController.createBulk);
 router.get('/series/:seriesId', transactionController.getSeries);
 router.put('/series/:seriesId', transactionController.updateSeries);
 router.patch('/series/:seriesId/paid', transactionController.markSeriesPaidForward);

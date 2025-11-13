@@ -1,6 +1,7 @@
 import express from 'express';
 import { authenticateToken } from '../middleware/auth.js';
 import { apiLimiter } from '../middleware/rateLimiter.js';
+import { checkAccountLimit, checkFeatureAccess } from '../middleware/planLimits.js';
 import { accountController, accountValidators } from '../controllers/accountController.js';
 import { transactionController, transactionValidators } from '../controllers/transactionController.js';
 
@@ -9,7 +10,7 @@ const router = express.Router();
 router.use(authenticateToken);
 router.use(apiLimiter);
 
-router.post('/', accountValidators.create, accountController.create);
+router.post('/', checkAccountLimit, accountValidators.create, accountController.create);
 router.get('/', accountController.list);
 router.get('/summary', accountController.getSummary);
 router.get(
@@ -19,6 +20,7 @@ router.get(
 );
 router.get(
   '/:accountId/statement/export',
+  checkFeatureAccess('pdfExport'),
   transactionValidators.accountStatementExport,
   transactionController.exportAccountStatement
 );
