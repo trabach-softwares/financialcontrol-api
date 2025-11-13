@@ -1,11 +1,27 @@
 import { dashboardService } from '../services/dashboardService.js';
 import { sendSuccess, sendError } from '../utils/response.js';
+import { validateDateParams } from '../utils/dateValidation.js';
 
 export const dashboardController = {
   async getStats(req, res) {
     try {
       const userId = req.user.id;
-      const stats = await dashboardService.getStats(userId);
+      const { start_date, end_date, startDate, endDate } = req.query;
+
+      // Suporta tanto snake_case quanto camelCase
+      const finalStartDate = start_date || startDate;
+      const finalEndDate = end_date || endDate;
+
+      // Valida parâmetros de data
+      const dateValidation = validateDateParams(finalStartDate, finalEndDate);
+      if (!dateValidation.valid) {
+        return sendError(res, dateValidation.error, 400);
+      }
+
+      const stats = await dashboardService.getStats(userId, {
+        startDate: finalStartDate,
+        endDate: finalEndDate
+      });
       
       return sendSuccess(res, stats, 'Dashboard statistics retrieved successfully');
     } catch (error) {
@@ -17,9 +33,23 @@ export const dashboardController = {
   async getCharts(req, res) {
     try {
       const userId = req.user.id;
-      const { period = '6months' } = req.query;
+      const { period, start_date, end_date, startDate, endDate } = req.query;
+
+      // Suporta tanto snake_case quanto camelCase
+      const finalStartDate = start_date || startDate;
+      const finalEndDate = end_date || endDate;
+
+      // Valida parâmetros de data
+      const dateValidation = validateDateParams(finalStartDate, finalEndDate);
+      if (!dateValidation.valid) {
+        return sendError(res, dateValidation.error, 400);
+      }
       
-      const charts = await dashboardService.getCharts(userId, period);
+      const charts = await dashboardService.getCharts(userId, {
+        period,
+        startDate: finalStartDate,
+        endDate: finalEndDate
+      });
       
       return sendSuccess(res, charts, 'Dashboard charts retrieved successfully');
     } catch (error) {

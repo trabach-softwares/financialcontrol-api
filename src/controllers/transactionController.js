@@ -1,6 +1,7 @@
 import { celebrate, Joi, Segments } from 'celebrate';
 import { transactionService } from '../services/transactionService.js';
 import { sendSuccess, sendError } from '../utils/response.js';
+import { validateDateParams } from '../utils/dateValidation.js';
 
 const accountIdParamSchema = Joi.string().guid({ version: 'uuidv4' }).required();
 
@@ -74,13 +75,23 @@ export const transactionController = {
 
   async getAll(req, res) {
     try {
-      const { type, category, startDate, endDate, limit, sort, page, paid } = req.query;
+      const { type, category, start_date, end_date, startDate, endDate, limit, sort, page, paid } = req.query;
+      
+      // Suporta tanto snake_case quanto camelCase
+      const finalStartDate = start_date || startDate;
+      const finalEndDate = end_date || endDate;
+
+      // Valida parâmetros de data
+      const dateValidation = validateDateParams(finalStartDate, finalEndDate);
+      if (!dateValidation.valid) {
+        return sendError(res, dateValidation.error, 400);
+      }
       
       const transactions = await transactionService.getAll(req.user.id, {
         type,
         category,
-        startDate,
-        endDate,
+        startDate: finalStartDate,
+        endDate: finalEndDate,
         paid: typeof paid === 'string' && paid !== '' ? paid === 'true' : undefined,
         limit: limit ? parseInt(limit) : undefined,
         sort,

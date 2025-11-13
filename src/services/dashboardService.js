@@ -1,20 +1,31 @@
 import { supabaseAdmin } from '../config/supabase.js';
+import { getFirstDayOfCurrentMonth, getLastDayOfCurrentMonth, getDateRangeFromPeriod } from '../utils/dateValidation.js';
 
 export const dashboardService = {
-  async getStats(userId) {
+  async getStats(userId, options = {}) {
     try {
-      // Get current month stats
-      const currentMonth = new Date();
-      const firstDayOfMonth = new Date(currentMonth.getFullYear(), currentMonth.getMonth(), 1);
-      const lastDayOfMonth = new Date(currentMonth.getFullYear(), currentMonth.getMonth() + 1, 0);
+      const { startDate, endDate } = options;
 
-      // Get income and expense totals for current month
-      const { data: monthlyStats } = await supabaseAdmin
+      // Define intervalo de datas
+      let filterStartDate, filterEndDate;
+      
+      if (startDate || endDate) {
+        // Se alguma data foi fornecida, usa ela
+        filterStartDate = startDate || '1900-01-01'; // Data muito antiga se não fornecida
+        filterEndDate = endDate || '2100-12-31'; // Data muito futura se não fornecida
+      } else {
+        // Se nenhuma data foi fornecida, usa mês atual
+        filterStartDate = getFirstDayOfCurrentMonth();
+        filterEndDate = getLastDayOfCurrentMonth();
+      }
+
+      // Get income and expense totals for the period
+      const { data: periodStats } = await supabaseAdmin
         .from('transactions')
         .select('type, amount')
         .eq('user_id', userId)
-        .gte('date', firstDayOfMonth.toISOString())
-        .lte('date', lastDayOfMonth.toISOString());
+        .gte('date', filterStartDate)
+        .lte('date', filterEndDate);
 
       // Get all-time stats
       const { data: allTimeStats } = await supabaseAdmin
@@ -22,12 +33,12 @@ export const dashboardService = {
         .select('type, amount')
         .eq('user_id', userId);
 
-      // Calculate monthly totals
-      const monthlyIncome = monthlyStats
+      // Calculate period totals
+      const periodIncome = periodStats
         ?.filter(t => t.type === 'income')
         .reduce((sum, t) => sum + parseFloat(t.amount), 0) || 0;
 
-      const monthlyExpense = monthlyStats
+      const periodExpense = periodStats
         ?.filter(t => t.type === 'expense')
         .reduce((sum, t) => sum + parseFloat(t.amount), 0) || 0;
 
@@ -47,10 +58,12 @@ export const dashboardService = {
         .eq('user_id', userId);
 
       return {
-        monthly: {
-          income: monthlyIncome,
-          expense: monthlyExpense,
-          balance: monthlyIncome - monthlyExpense
+        period: {
+          startDate: filterStartDate,
+          endDate: filterEndDate,
+          income: periodIncome,
+          expense: periodExpense,
+          balance: periodIncome - periodExpense
         },
         allTime: {
           income: totalIncome,
@@ -65,27 +78,27 @@ export const dashboardService = {
     }
   },
 
-  async getCharts(userId, period = '6months') {
+  async getCharts(userId, options = {}) {
     try {
-      // Calculate date range based on period
-      const endDate = new Date();
-      const startDate = new Date();
+      const { period, startDate, endDate } = options;
+
+      // Define intervalo de datas
+      let filterStartDate, filterEndDate;
       
-      switch (period) {
-        case '1month':
-          startDate.setMonth(startDate.getMonth() - 1);
-          break;
-        case '3months':
-          startDate.setMonth(startDate.getMonth() - 3);
-          break;
-        case '6months':
-          startDate.setMonth(startDate.getMonth() - 6);
-          break;
-        case '1year':
-          startDate.setFullYear(startDate.getFullYear() - 1);
-          break;
-        default:
-          startDate.setMonth(startDate.getMonth() - 6);
+      if (startDate || endDate) {
+        // Se datas foram fornecidas, usa elas
+        filterStartDate = startDate || '1900-01-01';
+        filterEndDate = endDate || '2100-12-31';
+      } else if (period) {
+        // Se período foi fornecido, calcula as datas
+        const dateRange = getDateRangeFromPeriod(period);
+        filterStartDate = dateRange.startDate;
+        filterEndDate = dateRange.endDate;
+      } else {
+        // Padrão: últimos 6 meses
+        const dateRange = getDateRangeFromPeriod('6months');
+        filterStartDate = dateRange.startDate;
+        filterEndDate = dateRange.endDate;
       }
 
       // Get transactions for the period
@@ -93,8 +106,8 @@ export const dashboardService = {
         .from('transactions')
         .select('type, amount, date, category')
         .eq('user_id', userId)
-        .gte('date', startDate.toISOString())
-        .lte('date', endDate.toISOString())
+        .gte('date', filterStartDate)
+        .lte('date', filterEndDate)
         .order('date', { ascending: true });
 
       if (!transactions || transactions.length === 0) {
