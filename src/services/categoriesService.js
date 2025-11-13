@@ -1,4 +1,5 @@
 import { supabaseAdmin } from '../config/supabase.js'
+import { planLimitsService } from './planLimitsService.js'
 
 export const categoriesService = {
   _normalizeColor(input) {
@@ -36,6 +37,22 @@ export const categoriesService = {
     const trimmed = (name || '').trim()
     if (!trimmed) throw new Error('Category name is required')
     const catType = (type === 'income' || type === 'expense') ? type : 'expense'
+
+    // Verifica limite do plano antes de criar
+    const limitCheck = await planLimitsService.canCreateCategory(userId)
+    if (!limitCheck.allowed) {
+      const error = new Error(
+        `Limite de categorias atingido. Você tem ${limitCheck.current} de ${limitCheck.limit} categorias personalizadas no plano ${limitCheck.planName}. Faça upgrade para criar mais categorias!`
+      )
+      error.status = 403
+      error.data = {
+        current: limitCheck.current,
+        limit: limitCheck.limit,
+        planName: limitCheck.planName,
+        upgradeRequired: true
+      }
+      throw error
+    }
 
     // ensure unique per user
     const { data: exists } = await supabaseAdmin
