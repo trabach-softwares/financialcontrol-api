@@ -384,5 +384,72 @@ export const transactionService = {
     } catch (error) {
       throw error
     }
+  },
+
+  async getReports(userId, { startDate, endDate }) {
+    try {
+      // Build query with date filters
+      let query = supabaseAdmin
+        .from('transactions')
+        .select('*')
+        .eq('user_id', userId);
+
+      if (startDate) {
+        query = query.gte('date', startDate);
+      }
+      if (endDate) {
+        query = query.lte('date', endDate);
+      }
+
+      const { data, error } = await query.order('date', { ascending: false });
+      
+      if (error) throw error;
+
+      const transactions = data.map(sanitizeTransaction);
+
+      // Calculate totals
+      const totalIncome = transactions
+        .filter(t => t.type === 'income')
+        .reduce((sum, t) => sum + t.amount, 0);
+
+      const totalExpense = transactions
+        .filter(t => t.type === 'expense')
+        .reduce((sum, t) => sum + t.amount, 0);
+
+      const balance = totalIncome - totalExpense;
+
+      // Group by category
+      const byCategory = transactions.reduce((acc, t) => {
+        if (!acc[t.category]) {
+          acc[t.category] = { income: 0, expense: 0 };
+        }
+        if (t.type === 'income') {
+          acc[t.category].income += t.amount;
+        } else {
+          acc[t.category].expense += t.amount;
+        }
+        return acc;
+      }, {});
+
+      const categories = Object.entries(byCategory).map(([name, values]) => ({
+        category: name,
+        income: values.income,
+        expense: values.expense,
+        total: values.income - values.expense
+      }));
+
+      return {
+        summary: {
+          totalIncome,
+          totalExpense,
+          balance,
+          transactionCount: transactions.length
+        },
+        categories,
+        transactions
+      };
+    } catch (error) {
+      throw error;
+    }
   }
 };

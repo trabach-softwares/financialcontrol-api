@@ -24,6 +24,7 @@ import dashboardRoutes from './routes/dashboardRoutes.js';
 import accountRoutes from './routes/accountRoutes.js';
 import paymentRoutes from './routes/paymentRoutes.js';
 import webhookRoutes from './routes/webhookRoutes.js';
+import reportRoutes from './routes/reportRoutes.js';
 
 dotenv.config();
 
@@ -97,6 +98,7 @@ app.use('/api/dashboard', dashboardRoutes);
 app.use('/api/accounts', accountRoutes);
 app.use('/api/payments', paymentRoutes);
 app.use('/api/webhooks', webhookRoutes);
+app.use('/api/reports', reportRoutes); // Reports with plan-based limits
 
 // 404 handler
 app.use((req, res) => {

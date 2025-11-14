@@ -14,6 +14,7 @@ router.post('/', checkTransactionLimit, transactionController.create);
 router.get('/', transactionController.getAll);
 router.get('/stats', transactionController.getStats);
 router.get('/timeline', transactionController.getTimeline);
+router.get('/reports', transactionController.getReports); // Must be before /:id
 router.patch('/:id/paid', transactionController.markPaid);
 // Series (installments)
 router.post('/series', checkTransactionLimit, transactionController.createBulk);

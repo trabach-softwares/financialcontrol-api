@@ -265,4 +265,20 @@ export const transactionController = {
       return sendError(res, error.message || 'Failed to export account statement', status);
     }
   }
+  ,
+  async getReports(req, res) {
+    try {
+      const { startDate, endDate } = validateDateParams(req.query.startDate, req.query.endDate);
+      
+      const reports = await transactionService.getReports(req.user.id, {
+        startDate,
+        endDate
+      });
+
+      return sendSuccess(res, reports);
+    } catch (error) {
+      const status = error.statusCode || error.status || 400;
+      return sendError(res, error.message || 'Failed to retrieve reports', status);
+    }
+  }
 };
