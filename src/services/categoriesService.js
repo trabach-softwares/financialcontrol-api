@@ -54,11 +54,12 @@ export const categoriesService = {
       throw error
     }
 
-    // ensure unique per user
+    // ensure unique per user AND type (allow same name for income/expense)
     const { data: exists } = await supabaseAdmin
       .from('categories')
-      .select('id')
+      .select('id, name, icon, color, created_at, type, is_default')
       .eq('user_id', userId)
+      .eq('type', catType)
       .ilike('name', trimmed)
       .maybeSingle()
 
