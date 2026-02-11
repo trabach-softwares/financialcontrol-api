@@ -2,6 +2,7 @@ import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import { supabase, supabaseAdmin } from '../config/supabase.js';
 import { jwtConfig } from '../config/jwt.js';
+import { PLAN_IDS } from '../utils/planFeatures.js';
 
 export const authService = {
   async register(email, password, name) {
@@ -20,7 +21,7 @@ export const authService = {
       // Hash password
       const hashedPassword = await bcrypt.hash(password, 10);
 
-      // Create user
+      // Create user with Free plan by default
       const { data: user, error } = await supabaseAdmin
         .from('users')
         .insert([
@@ -29,7 +30,7 @@ export const authService = {
             password: hashedPassword,
             name,
             role: 'user',
-            plan_id: null
+            plan_id: PLAN_IDS.FREE
           }
         ])
         .select()

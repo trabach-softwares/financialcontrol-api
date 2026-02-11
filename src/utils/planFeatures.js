@@ -6,6 +6,15 @@
 import { planLimitsService, PLAN_LIMITS } from '../services/planLimitsService.js';
 
 /**
+ * IDs dos planos no banco de dados
+ */
+export const PLAN_IDS = {
+  FREE: '3c25d559-fb8a-436c-a414-e4991e6e6f4c',
+  // PRO: 'adicionar-id-aqui-quando-necessario',
+  // ENTERPRISE: 'adicionar-id-aqui-quando-necessario'
+};
+
+/**
  * Verifica se feature está disponível e lança erro se não estiver
  * @param {string} userId - ID do usuário
  * @param {string} featureName - Nome da feature
