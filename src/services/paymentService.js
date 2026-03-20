@@ -507,6 +507,9 @@ class PaymentService {
 
   /**
    * Processar webhook do Asaas
+   * O Asaas envia PAYMENT_CONFIRMED/RECEIVED tanto para pagamentos únicos
+   * quanto para cobranças de assinatura. Quando é assinatura, o campo
+   * paymentData.subscription contém o ID da assinatura Asaas.
    */
   async processWebhook(event, paymentData) {
     try {
@@ -522,8 +525,13 @@ class PaymentService {
       switch (event) {
         case asaasConfig.webhookEvents.PAYMENT_RECEIVED:
         case asaasConfig.webhookEvents.PAYMENT_CONFIRMED:
-          // Pagamento confirmado!
-          await this.handlePaymentConfirmed(paymentData, userId);
+          if (paymentData.subscription) {
+            // Cobrança recorrente (renovação de assinatura)
+            await this.handleSubscriptionPaymentConfirmed(paymentData, userId);
+          } else {
+            // Pagamento único (PIX, boleto, cartão avulso)
+            await this.handlePaymentConfirmed(paymentData, userId);
+          }
           break;
 
         case asaasConfig.webhookEvents.PAYMENT_OVERDUE:
@@ -622,6 +630,50 @@ class PaymentService {
 
     } catch (error) {
       console.error('❌ Erro ao confirmar pagamento:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Tratar cobrança confirmada de assinatura recorrente
+   * Chamado quando o Asaas confirma a renovação automática de uma assinatura.
+   */
+  async handleSubscriptionPaymentConfirmed(paymentData, userId) {
+    try {
+      const asaasSubscriptionId = paymentData.subscription;
+      console.log(`🔁 Renovação de assinatura confirmada: ${asaasSubscriptionId} - Usuário: ${userId}`);
+
+      // 1. Atualizar a assinatura no banco
+      const { error: subError } = await supabase
+        .from('subscriptions')
+        .update({
+          status: 'ACTIVE',
+          last_payment_date: paymentData.paymentDate || paymentData.confirmedDate || new Date().toISOString()
+        })
+        .eq('asaas_subscription_id', asaasSubscriptionId);
+
+      if (subError) {
+        console.error('❌ Erro ao atualizar assinatura na renovação:', subError);
+        throw new Error('Erro ao atualizar assinatura');
+      }
+
+      // 2. Garantir que o plano do usuário permanece ativo
+      const { error: userError } = await supabase
+        .from('users')
+        .update({
+          plan_status: 'active',
+          subscription_status: 'active'
+        })
+        .eq('id', userId);
+
+      if (userError) {
+        console.error('❌ Erro ao manter plano ativo na renovação:', userError);
+        throw new Error('Erro ao atualizar status do usuário');
+      }
+
+      console.log(`✅ Renovação processada com sucesso para usuário ${userId}`);
+    } catch (error) {
+      console.error('❌ Erro ao processar renovação de assinatura:', error);
       throw error;
     }
   }

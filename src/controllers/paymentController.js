@@ -279,14 +279,20 @@ class PaymentController {
         return res.status(400).json({ error: 'Invalid payload' });
       }
 
-      console.log(`🔔 Webhook recebido: ${event}`);
+      console.log(`🔔 Webhook recebido: ${event}`, {
+        paymentId: payment?.id,
+        subscriptionId: subscription?.id || payment?.subscription,
+        externalReference: payment?.externalReference || subscription?.externalReference
+      });
 
-      // Determinar tipo de webhook (pagamento único ou assinatura)
-      const isSubscriptionEvent = event.includes('SUBSCRIPTION') || subscription;
+      // Eventos de assinatura (SUBSCRIPTION_*) → subscriptionService
+      // Eventos de pagamento com subscription na raiz → subscriptionService
+      // Eventos de pagamento (PAYMENT_*) → paymentService (que internamente detecta renovação)
+      const isSubscriptionRootEvent = event.startsWith('SUBSCRIPTION') || !!subscription;
 
-      if (isSubscriptionEvent && subscription) {
-        // Processar webhook de assinatura
-        console.log(`📋 Processando webhook de assinatura: ${subscription.id}`);
+      if (isSubscriptionRootEvent && subscription) {
+        // Evento de assinatura com objeto subscription na raiz
+        console.log(`📋 Processando evento de assinatura: ${event} - ${subscription.id}`);
 
         subscriptionService.handleSubscriptionWebhook(event, subscription)
           .then(success => {
@@ -299,9 +305,11 @@ class PaymentController {
           .catch(error => {
             console.error('❌ Erro ao processar webhook de assinatura:', error);
           });
+
       } else if (payment) {
-        // Processar webhook de pagamento único
-        console.log(`💳 Processando webhook de pagamento: ${payment.id}`);
+        // Evento de pagamento (único ou cobrança de assinatura recorrente)
+        // paymentService.processWebhook detecta internamente se é renovação via payment.subscription
+        console.log(`💳 Processando evento de pagamento: ${event} - ${payment.id}${payment.subscription ? ` (assinatura: ${payment.subscription})` : ''}`);
 
         paymentService.processWebhook(event, payment)
           .then(success => {
@@ -314,6 +322,7 @@ class PaymentController {
           .catch(error => {
             console.error('❌ Erro ao processar webhook de pagamento:', error);
           });
+
       } else {
         console.warn(`⚠️  Webhook sem dados de pagamento ou assinatura: ${event}`);
       }
