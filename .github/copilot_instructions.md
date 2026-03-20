@@ -43,6 +43,8 @@ financialcontrol-api/
 │   ├── 001_create_payments_table.sql
 │   ├── 002_add_asaas_customer_id_to_users.sql
 │   ├── 003_add_plan_status_to_users.sql
+│   ├── 006_create_subscriptions.sql       # ⭐ NOVO: Tabela de assinaturas
+│   ├── 007_add_subscription_fields_to_users.sql # ⭐ NOVO: Campos de assinatura em users
 │   ├── admin_queries.sql
 │   └── README.md
 ├── scripts/                         # Scripts auxiliares de deploy
@@ -65,6 +67,7 @@ financialcontrol-api/
 │   │   ├── planLimitsController.js
 │   │   ├── publicPlanController.js
 │   │   ├── reportController.js
+│   │   ├── subscriptionController.js # ⭐ NOVO: Controller de assinaturas
 │   │   ├── transactionController.js
 │   │   ├── userController.js
 │   │   └── userProfileController.js
@@ -84,6 +87,7 @@ financialcontrol-api/
 │   │   ├── planRoutes.js
 │   │   ├── publicPlanRoutes.js
 │   │   ├── reportRoutes.js
+│   │   ├── subscriptionRoutes.js  # ⭐ NOVO: Rotas de assinaturas
 │   │   ├── transactionRoutes.js
 │   │   ├── userProfileRoutes.js
 │   │   ├── userRoutes.js
@@ -98,6 +102,7 @@ financialcontrol-api/
 │   │   ├── planLimitsService.js
 │   │   ├── planService.js
 │   │   ├── reportService.js
+│   │   ├── subscriptionService.js # ⭐ NOVO: Assinaturas recorrentes
 │   │   ├── transactionService.js
 │   │   └── userService.js
 │   ├── utils/                     # Utilitários e helpers
@@ -1347,7 +1352,214 @@ Todas as respostas da API seguem o formato JSON padronizado:
 
 ---
 
-## 🔐 Segurança
+## � Assinaturas Recorrentes (Subscription System)
+
+### Visão Geral
+
+O sistema de assinaturas permite pagamentos recorrentes com cartão de crédito via Asaas:
+- **MONTHLY** - Mensal (renovação a cada 30 dias)
+- **QUARTERLY** - Trimestral (renovação a cada 3 meses) com 10% desconto
+- **YEARLY** - Anual (renovação a cada 12 meses) com 17% desconto
+
+### Arquitetura de Assinaturas
+
+```
+┌─────────────────┐
+│ subscriptionRoutes │ → Define endpoints HTTP
+├─────────────────┤
+│ subscriptionController │ → Valida entrada, orquestra
+├─────────────────┤
+│ subscriptionService │ → Lógica de negócio + integração Asaas
+├─────────────────┤
+│ Asaas API v3 │ → POST /v3/subscriptions
+└─────────────────┘
+```
+
+### Tabelas Relacionadas
+
+**subscriptions**
+- `id` - UUID único da assinatura
+- `user_id` - FK para users
+- `plan_id` - FK para plans
+- `asaas_subscription_id` - ID no Asaas (sub_xxxxxxx)
+- `cycle` - MONTHLY | QUARTERLY | YEARLY
+- `value` - Valor cobrado por ciclo
+- `status` - ACTIVE | EXPIRED | CANCELLED | SUSPENDED
+- `next_due_date` - Próxima data de cobrança
+- `card_brand` - VISA, MASTERCARD, etc (apenas últimos 4 dígitos)
+- `card_last4` - Últimos 4 dígitos do cartão
+
+**users (campos adicionais)**
+- `subscription_id` - FK para subscriptions (assinatura ativa)
+- `subscription_cycle` - Cache do ciclo atual
+- `subscription_status` - active | inactive | expired | cancelled
+
+### Ciclo de Vida de uma Assinatura
+
+```
+1. Usuário escolhe plano + ciclo (QUARTERLY ou YEARLY)
+2. Frontend envia dados do cartão (tokenizado)
+3. subscriptionService.createSubscription()
+   ├─ Valida plano
+   ├─ Calcula valor com desconto
+   ├─ Cria/obtém customer no Asaas
+   ├─ POST /v3/subscriptions no Asaas
+   ├─ Salva subscription no banco local
+   └─ Ativa plano do usuário
+4. Asaas processa pagamento
+5. Webhook: PAYMENT_CONFIRMED
+   └─ Assinatura fica ACTIVE
+6. Renovação Automática (após ciclo):
+   ├─ Asaas cobra cartão automaticamente
+   └─ Webhook: SUBSCRIPTION_PAYMENT_RECEIVED
+7. Cancelamento (opcional):
+   ├─ subscriptionService.cancelSubscription()
+   ├─ DELETE /v3/subscriptions/{id} no Asaas
+   └─ Mantém acesso até próxima renovação
+```
+
+### Descontos por Ciclo
+
+```javascript
+// Implementação em subscriptionService.js
+DISCOUNTS: {
+  MONTHLY: 0,        // 0% desconto (R$ 49,90/mês → R$ 49,90)
+  QUARTERLY: 0.10,   // 10% desconto (R$ 49,90/mês → R$ 134,90/trimestre = R$ 44,97/mês)
+  YEARLY: 0.17       // 17% desconto (R$ 49,90/mês → R$ 499,90/ano = R$ 41,66/mês)
+}
+```
+
+### Endpoints de Assinatura
+
+| Método | Endpoint | Descrição | Auth |
+|--------|----------|-----------|------|
+| POST | `/api/subscriptions` | Criar assinatura | ✅ |
+| GET | `/api/subscriptions/active` | Buscar assinatura ativa | ✅ |
+| GET | `/api/subscriptions` | Listar histórico | ✅ |
+| DELETE | `/api/subscriptions/:id` | Cancelar assinatura | ✅ |
+| PUT | `/api/subscriptions/:id/card` | Atualizar cartão | ✅ |
+| GET | `/api/subscriptions/pricing` | Obter preços calculados | ❌ |
+
+### Eventos de Webhook (Asaas)
+
+```javascript
+// Eventos tratados em subscriptionService.handleSubscriptionWebhook()
+SUBSCRIPTION_PAYMENT_RECEIVED → Renovação confirmada (atualiza next_due_date)
+SUBSCRIPTION_EXPIRED → Assinatura expirou (reverte para plano Free)
+SUBSCRIPTION_CANCELLED → Assinatura cancelada (mantém acesso até vencimento)
+```
+
+### Exemplo de Criação de Assinatura
+
+```javascript
+POST /api/subscriptions
+Authorization: Bearer {jwt_token}
+
+{
+  "planId": "uuid-do-plano-pro",
+  "cycle": "YEARLY",
+  "creditCardData": {
+    "holderName": "João Silva",
+    "number": "5162306219378829",
+    "expiryMonth": "12",
+    "expiryYear": "2028",
+    "cvv": "318"
+  }
+}
+
+// Response 201 Created
+{
+  "success": true,
+  "data": {
+    "subscription": {
+      "id": "sub_abc123",
+      "status": "ACTIVE",
+      "cycle": "YEARLY",
+      "cycleLabel": "Anual",
+      "value": 499.90,
+      "nextDueDate": "2027-02-11",
+      "creditCard": {
+        "brand": "MASTERCARD",
+        "last4": "8829"
+      },
+      "savings": {
+        "amount": 98.90,
+        "percentage": 17,
+        "message": "Economize R$ 98,90 (17%)"
+      }
+    },
+    "plan": {
+      "id": "uuid",
+      "name": "Pro",
+      "monthlyPrice": 49.90
+    }
+  },
+  "message": "Assinatura Anual criada com sucesso!"
+}
+```
+
+### Regras de Negócio - Assinaturas
+
+1. **Unicidade**: Usuário pode ter apenas 1 assinatura ativa por vez
+2. **Validação de Cartão**: Cartão deve ser validado antes de enviar ao Asaas
+3. **PCI Compliance**: NUNCA armazenar número completo do cartão ou CVV
+4. **Cancelamento**: Mantém acesso até próxima renovação (não reembolsa)
+5. **Renovação Automática**: Asaas cobra automaticamente no `next_due_date`
+6. **Falha de Pagamento**: Status muda para SUSPENDED, Asaas tenta novamente
+7. **Expiração**: Após 3 tentativas falhas, status → EXPIRED, plano → Free
+8. **Atualização de Cartão**: Não cancela assinatura, apenas substitui dados de pagamento
+
+### Segurança - Assinaturas
+
+```javascript
+// ✅ CORRETO - Armazenar apenas metadados
+{
+  card_brand: "VISA",
+  card_last4: "1234"
+}
+
+// ❌ NUNCA FAZER - Expor dados sensíveis
+{
+  card_number: "4111111111111111", // ❌ NUNCA!
+  cvv: "123" // ❌ NUNCA!
+}
+```
+
+### Webhooks - Fluxo Completo
+
+```javascript
+// paymentController.handleWebhook()
+POST /api/webhooks/asaas
+
+// 1. Validar assinatura do webhook
+if (!validateSignature(req.body, req.headers['asaas-access-token'])) {
+  return 401;
+}
+
+// 2. Determinar tipo de evento
+const { event, payment, subscription } = req.body;
+
+// 3. Rotear para handler correto
+if (event.includes('SUBSCRIPTION') || subscription) {
+  // Webhook de assinatura
+  subscriptionService.handleSubscriptionWebhook(event, subscription);
+} else if (payment) {
+  // Webhook de pagamento único
+  paymentService.processWebhook(event, payment);
+}
+
+// 4. Retornar 200 imediatamente (Asaas espera resposta rápida)
+return 200;
+```
+
+### Migrations Relacionadas
+
+- `006_create_subscriptions.sql` - Tabela subscriptions + RLS + triggers
+- `007_add_subscription_fields_to_users.sql` - Campos de cache em users + sincronização automática
+
+---
+
+## �🔐 Segurança
 
 ### Princípios de Segurança
 

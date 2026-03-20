@@ -78,6 +78,7 @@ export const asaasConfig = {
   
   // Eventos de webhook
   webhookEvents: {
+    // Eventos de Pagamento Único
     PAYMENT_CREATED: 'PAYMENT_CREATED',
     PAYMENT_AWAITING_RISK_ANALYSIS: 'PAYMENT_AWAITING_RISK_ANALYSIS',
     PAYMENT_APPROVED_BY_RISK_ANALYSIS: 'PAYMENT_APPROVED_BY_RISK_ANALYSIS',
@@ -98,8 +99,25 @@ export const asaasConfig = {
     PAYMENT_AWAITING_CHARGEBACK_REVERSAL: 'PAYMENT_AWAITING_CHARGEBACK_REVERSAL',
     PAYMENT_DUNNING_RECEIVED: 'PAYMENT_DUNNING_RECEIVED',
     PAYMENT_DUNNING_REQUESTED: 'PAYMENT_DUNNING_REQUESTED',
-    PAYMENT_BANK_SLIP_VIEWED: 'PAYMENT_BANK_SLIP_VIEWED',
-    PAYMENT_CHECKOUT_VIEWED: 'PAYMENT_CHECKOUT_VIEWED'
+    
+    // Eventos de Assinatura (Subscription) - Eventos reais do Asaas
+    SUBSCRIPTION_CREATED: 'SUBSCRIPTION_CREATED',                             // Geração de nova assinatura
+    SUBSCRIPTION_UPDATED: 'SUBSCRIPTION_UPDATED',                             // Alteração na assinatura
+    SUBSCRIPTION_INACTIVATED: 'SUBSCRIPTION_INACTIVATED',                     // Assinatura inativada
+    SUBSCRIPTION_DELETED: 'SUBSCRIPTION_DELETED',                             // Assinatura removida
+    SUBSCRIPTION_SPLIT_DISABLED: 'SUBSCRIPTION_SPLIT_DISABLED',               // Split desativado
+    SUBSCRIPTION_SPLIT_DIVERGENCE_BLOCK: 'SUBSCRIPTION_SPLIT_DIVERGENCE_BLOCK', // Bloqueio por divergência
+    SUBSCRIPTION_SPLIT_DIVERGENCE_BLOCK_FINISHED: 'SUBSCRIPTION_SPLIT_DIVERGENCE_BLOCK_FINISHED' // Fim do bloqueio
+  },
+  
+  // Ciclos de assinatura disponíveis
+  subscriptionCycles: {
+    WEEKLY: 'WEEKLY',           // Semanal
+    BIWEEKLY: 'BIWEEKLY',       // Quinzenal
+    MONTHLY: 'MONTHLY',         // Mensal
+    QUARTERLY: 'QUARTERLY',     // Trimestral (⭐ NOVO)
+    SEMIANNUALLY: 'SEMIANNUALLY', // Semestral
+    YEARLY: 'YEARLY'            // Anual (⭐ NOVO)
   }
 };
 

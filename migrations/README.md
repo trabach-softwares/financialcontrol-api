@@ -42,7 +42,36 @@ Adiciona campos de controle de status do plano.
 
 ---
 
-### 4. `admin_queries.sql`
+### 6. `006_create_subscriptions.sql` ⭐ **NOVO**
+Cria tabela de assinaturas recorrentes (trimestral/anual).
+
+**Conteúdo:**
+- Tabela `subscriptions`
+- Índices para performance
+- Row Level Security (RLS)
+- Triggers para `updated_at`
+- View `active_subscriptions`
+- Comentários detalhados
+
+**Executar:** ✅ Obrigatório para assinaturas recorrentes
+
+---
+
+### 7. `007_add_subscription_fields_to_users.sql` ⭐ **NOVO**
+Adiciona campos de assinatura à tabela users.
+
+**Conteúdo:**
+- Coluna `subscription_id` (FK para subscriptions)
+- Coluna `subscription_cycle` (MONTHLY/QUARTERLY/YEARLY)
+- Coluna `subscription_status` (active/inactive/expired/cancelled)
+- Trigger de sincronização automática
+- View `users_with_subscriptions`
+
+**Executar:** ✅ Obrigatório para assinaturas recorrentes
+
+---
+
+### 8. `admin_queries.sql`
 Consultas úteis para administração e relatórios.
 
 **Conteúdo:**

@@ -25,6 +25,7 @@ import accountRoutes from './routes/accountRoutes.js';
 import paymentRoutes from './routes/paymentRoutes.js';
 import webhookRoutes from './routes/webhookRoutes.js';
 import reportRoutes from './routes/reportRoutes.js';
+import subscriptionRoutes from './routes/subscriptionRoutes.js';
 
 dotenv.config();
 
@@ -97,6 +98,7 @@ app.use('/api/admin', adminRoutes);
 app.use('/api/dashboard', dashboardRoutes);
 app.use('/api/accounts', accountRoutes);
 app.use('/api/payments', paymentRoutes);
+app.use('/api/subscriptions', subscriptionRoutes); // Subscription routes (trimestral/anual)
 app.use('/api/webhooks', webhookRoutes);
 app.use('/api/reports', reportRoutes); // Reports with plan-based limits
 

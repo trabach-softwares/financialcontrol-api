@@ -124,23 +124,40 @@ class PaymentService {
 
       // Se cartão de crédito, adicionar dados
       if (paymentMethod === 'CREDIT_CARD' && creditCardData) {
-        const [expiryMonth, expiryYear] = creditCardData.expiryDate.split('/');
+        // Buscar endereço do usuário na tabela user_addresses
+        const { data: address } = await supabase
+          .from('user_addresses')
+          .select('*')
+          .eq('user_id', userId)
+          .maybeSingle();
+
+        if (!user.cpf || !address?.postal_code) {
+          const missingFields = [];
+          if (!user.cpf)             missingFields.push('CPF');
+          if (!address?.postal_code) missingFields.push('CEP');
+          const err = new Error('Cadastro incompleto. Por favor, preencha seu CPF e CEP antes de pagar com cartão.');
+          err.status = 422;
+          err.data = { missingFields, action: 'complete_profile' };
+          throw err;
+        }
+
+        const [expiryMonth, expiryYear] = String(creditCardData.expiryDate).split('/');
         
         paymentPayload.creditCard = {
-          holderName: creditCardData.holderName,
-          number: creditCardData.number.replace(/\s/g, ''),
+          holderName: String(creditCardData.holderName).trim(),
+          number: String(creditCardData.number).replace(/[\s-]/g, ''),
           expiryMonth: expiryMonth.trim(),
           expiryYear: expiryYear.trim(),
-          ccv: creditCardData.cvv
+          ccv: String(creditCardData.cvv)
         };
 
         paymentPayload.creditCardHolderInfo = {
-          name: user.name,
+          name: String(creditCardData.holderName).trim(), // nome como no cartão
           email: user.email,
-          cpfCnpj: user.cpf?.replace(/\D/g, ''),
-          postalCode: user.postal_code?.replace(/\D/g, ''),
-          addressNumber: user.address_number,
-          phone: user.phone?.replace(/\D/g, '')
+          cpfCnpj: user.cpf.replace(/\D/g, ''),
+          postalCode: address.postal_code.replace(/\D/g, ''),
+          addressNumber: address.number || 'S/N',
+          phone: user.phone?.replace(/\D/g, '') || undefined
         };
       }
 
@@ -452,12 +469,21 @@ class PaymentService {
       return true;
     }
 
-    const hash = crypto
-      .createHmac('sha256', asaasConfig.webhookSecret)
-      .update(JSON.stringify(payload))
-      .digest('hex');
+    if (!signature) {
+      console.warn('⚠️  Webhook sem header de autenticação');
+      return false;
+    }
 
-    return hash === signature;
+    // O Asaas envia o accessToken configurado no dashboard via header asaas-access-token
+    // É uma comparação direta de strings (tempo constante para evitar timing attacks)
+    const expected = Buffer.from(asaasConfig.webhookSecret);
+    const received = Buffer.from(signature);
+
+    if (expected.length !== received.length) {
+      return false;
+    }
+
+    return crypto.timingSafeEqual(expected, received);
   }
 
   /**

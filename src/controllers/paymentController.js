@@ -4,6 +4,7 @@
  */
 
 import { paymentService } from '../services/paymentService.js';
+import { subscriptionService } from '../services/subscriptionService.js';
 import { sendSuccess, sendError } from '../utils/response.js';
 
 class PaymentController {
@@ -52,16 +53,34 @@ class PaymentController {
         }
 
         // Validar formato da data de expiração (MM/YYYY)
-        if (!/^\d{2}\/\d{4}$/.test(creditCard.expiryDate)) {
-          sendError(
+        if (!/^\d{2}\/\d{4}$/.test(String(creditCard.expiryDate))) {
+          return sendError(
             res,
             'Data de expiração inválida. Use o formato: MM/YYYY',
             400
           );
         }
 
-        // Validar CVV (3 ou 4 dígitos)
-        if (!/^\d{3,4}$/.test(creditCard.cvv)) {
+        // Validar se cartão não está expirado
+        const [expMonthStr, expYearStr] = String(creditCard.expiryDate).split('/');
+        const now = new Date();
+        const expMonth = parseInt(expMonthStr, 10);
+        const expYear  = parseInt(expYearStr, 10);
+        if (
+          expYear < now.getFullYear() ||
+          (expYear === now.getFullYear() && expMonth < now.getMonth() + 1)
+        ) {
+          return sendError(res, 'Cartão expirado', 400);
+        }
+
+        // Validar número do cartão (apenas dígitos, 13-19 caracteres)
+        const cardNumber = String(creditCard.number).replace(/[\s-]/g, '');
+        if (!/^\d+$/.test(cardNumber) || cardNumber.length < 13 || cardNumber.length > 19) {
+          return sendError(res, 'Número do cartão inválido', 400);
+        }
+
+        // Validar CVV (3 ou 4 dígitos numéricos)
+        if (!/^\d{3,4}$/.test(String(creditCard.cvv))) {
           return sendError(res, 'CVV inválido (3 ou 4 dígitos)', 400);
         }
       }
@@ -237,7 +256,7 @@ class PaymentController {
 
   /**
    * POST /api/webhooks/asaas
-   * Receber notificações do Asaas
+   * Receber notificações do Asaas (pagamentos e assinaturas)
    */
   async handleWebhook(req, res) {
     try {
@@ -251,27 +270,51 @@ class PaymentController {
         return res.status(401).json({ error: 'Invalid signature' });
       }
 
-      const { event, payment } = req.body;
+      const { event, payment, subscription } = req.body;
 
-      if (!event || !payment) {
+      if (!event) {
         console.error('❌ Webhook com dados inválidos');
         return res.status(400).json({ error: 'Invalid payload' });
       }
 
-      console.log(`🔔 Webhook recebido: ${event} - Payment: ${payment.id}`);
+      console.log(`🔔 Webhook recebido: ${event}`);
 
-      // Processar webhook de forma assíncrona
-      paymentService.processWebhook(event, payment)
-        .then(success => {
-          if (success) {
-            console.log(`✅ Webhook processado: ${event}`);
-          } else {
-            console.error(`❌ Falha ao processar webhook: ${event}`);
-          }
-        })
-        .catch(error => {
-          console.error('❌ Erro ao processar webhook:', error);
-        });
+      // Determinar tipo de webhook (pagamento único ou assinatura)
+      const isSubscriptionEvent = event.includes('SUBSCRIPTION') || subscription;
+
+      if (isSubscriptionEvent && subscription) {
+        // Processar webhook de assinatura
+        console.log(`📋 Processando webhook de assinatura: ${subscription.id}`);
+        
+        subscriptionService.handleSubscriptionWebhook(event, subscription)
+          .then(success => {
+            if (success) {
+              console.log(`✅ Webhook de assinatura processado: ${event}`);
+            } else {
+              console.error(`❌ Falha ao processar webhook de assinatura: ${event}`);
+            }
+          })
+          .catch(error => {
+            console.error('❌ Erro ao processar webhook de assinatura:', error);
+          });
+      } else if (payment) {
+        // Processar webhook de pagamento único
+        console.log(`💳 Processando webhook de pagamento: ${payment.id}`);
+        
+        paymentService.processWebhook(event, payment)
+          .then(success => {
+            if (success) {
+              console.log(`✅ Webhook de pagamento processado: ${event}`);
+            } else {
+              console.error(`❌ Falha ao processar webhook de pagamento: ${event}`);
+            }
+          })
+          .catch(error => {
+            console.error('❌ Erro ao processar webhook de pagamento:', error);
+          });
+      } else {
+        console.warn(`⚠️  Webhook sem dados de pagamento ou assinatura: ${event}`);
+      }
 
       // Retornar 200 imediatamente (Asaas espera resposta rápida)
       return res.status(200).json({ received: true });

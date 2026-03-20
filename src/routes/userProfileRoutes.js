@@ -74,4 +74,19 @@ router.put('/settings', authenticateToken, userProfileController.updateSettings)
  */
 router.delete('/account', authenticateToken, userProfileController.deleteAccount);
 
+/**
+ * @route   GET /api/users/profile/address
+ * @desc    Buscar endereço de cobrança do usuário autenticado
+ * @access  Private
+ */
+router.get('/profile/address', authenticateToken, userProfileController.getAddress);
+
+/**
+ * @route   PUT /api/users/profile/address
+ * @desc    Criar ou atualizar endereço de cobrança (upsert)
+ * @access  Private
+ * @body    { postal_code, street, number, complement, neighborhood, city, state }
+ */
+router.put('/profile/address', authenticateToken, userProfileController.upsertAddress);
+
 export default router;

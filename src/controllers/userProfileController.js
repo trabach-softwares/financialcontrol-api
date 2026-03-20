@@ -592,3 +592,104 @@ export const deleteAccount = async (req, res) => {
     });
   }
 };
+
+// ========================================
+// ENDEREÇO DO USUÁRIO
+// ========================================
+
+/**
+ * GET /api/users/profile/address
+ * Buscar endereço do usuário autenticado
+ */
+export const getAddress = async (req, res) => {
+  try {
+    const userId = req.userId;
+
+    const { data, error } = await supabaseAdmin
+      .from('user_addresses')
+      .select('*')
+      .eq('user_id', userId)
+      .maybeSingle();
+
+    if (error) {
+      console.error('Erro ao buscar endereço:', error);
+      return res.status(500).json({ success: false, message: 'Erro ao buscar endereço' });
+    }
+
+    return res.json({ success: true, data: data ?? null });
+  } catch (error) {
+    console.error('Erro ao buscar endereço:', error);
+    return res.status(500).json({ success: false, message: 'Erro ao buscar endereço' });
+  }
+};
+
+/**
+ * PUT /api/users/profile/address
+ * Criar ou atualizar endereço do usuário autenticado (upsert)
+ *
+ * Body:
+ * {
+ *   "postal_code": "88000-000",   // obrigatório
+ *   "street":      "Rua das Flores",
+ *   "number":      "123",
+ *   "complement":  "Apto 4",
+ *   "neighborhood":"Centro",
+ *   "city":        "Florianópolis",
+ *   "state":       "SC"           // 2 caracteres
+ * }
+ */
+export const upsertAddress = async (req, res) => {
+  try {
+    const userId = req.userId;
+    const { postal_code, street, number, complement, neighborhood, city, state } = req.body;
+
+    // Validações
+    if (!postal_code || postal_code.trim().length === 0) {
+      return res.status(400).json({ success: false, message: 'CEP é obrigatório' });
+    }
+
+    const cepClean = postal_code.replace(/\D/g, '');
+    if (cepClean.length !== 8) {
+      return res.status(400).json({ success: false, message: 'CEP inválido (deve ter 8 dígitos)' });
+    }
+
+    if (state && state.length !== 2) {
+      return res.status(400).json({ success: false, message: 'Estado deve ter 2 caracteres (ex: SC)' });
+    }
+
+    const addressData = {
+      user_id: userId,
+      postal_code: cepClean,
+      street: street?.trim() || null,
+      number: number?.trim() || null,
+      complement: complement?.trim() || null,
+      neighborhood: neighborhood?.trim() || null,
+      city: city?.trim() || null,
+      state: state?.toUpperCase().trim() || null,
+      country: 'BR',
+      updated_at: new Date().toISOString()
+    };
+
+    const { data, error } = await supabaseAdmin
+      .from('user_addresses')
+      .upsert(addressData, { onConflict: 'user_id' })
+      .select()
+      .single();
+
+    if (error) {
+      console.error('Erro ao salvar endereço:', error);
+      return res.status(400).json({ success: false, message: error.message || 'Erro ao salvar endereço' });
+    }
+
+    console.log(`✅ Endereço salvo para usuário ${userId}: CEP ${cepClean}`);
+
+    return res.json({
+      success: true,
+      message: 'Endereço salvo com sucesso',
+      data
+    });
+  } catch (error) {
+    console.error('Erro ao salvar endereço:', error);
+    return res.status(500).json({ success: false, message: 'Erro ao salvar endereço' });
+  }
+};
