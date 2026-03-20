@@ -65,7 +65,7 @@ class PaymentController {
         const [expMonthStr, expYearStr] = String(creditCard.expiryDate).split('/');
         const now = new Date();
         const expMonth = parseInt(expMonthStr, 10);
-        const expYear  = parseInt(expYearStr, 10);
+        const expYear = parseInt(expYearStr, 10);
         if (
           expYear < now.getFullYear() ||
           (expYear === now.getFullYear() && expMonth < now.getMonth() + 1)
@@ -120,11 +120,11 @@ class PaymentController {
 
     } catch (error) {
       console.error('❌ Erro ao consultar pagamento:', error);
-      
+
       if (error.message === 'Pagamento não encontrado') {
         return sendError(res, error.message, 404);
       }
-      
+
       return sendError(res, error.message, 400);
     }
   }
@@ -152,7 +152,7 @@ class PaymentController {
       if (!payment.pix_payload || !payment.pix_qr_code_image) {
         // Buscar dados atualizados do PIX
         const pixData = await paymentService.getPixQrCode(paymentId);
-        
+
         return sendSuccess(res, pixData);
       }
 
@@ -165,11 +165,11 @@ class PaymentController {
 
     } catch (error) {
       console.error('❌ Erro ao buscar QR Code PIX:', error);
-      
+
       if (error.message === 'Pagamento não encontrado') {
         return sendError(res, error.message, 404);
       }
-      
+
       return sendError(res, error.message, 400);
     }
   }
@@ -186,10 +186,10 @@ class PaymentController {
       // Validar status se fornecido
       if (status) {
         const validStatuses = [
-          'PENDING', 'RECEIVED', 'CONFIRMED', 'OVERDUE', 
+          'PENDING', 'RECEIVED', 'CONFIRMED', 'OVERDUE',
           'CANCELLED', 'REFUNDED'
         ];
-        
+
         if (!validStatuses.includes(status)) {
           return sendError(
             res,
@@ -241,15 +241,15 @@ class PaymentController {
 
     } catch (error) {
       console.error('❌ Erro ao cancelar pagamento:', error);
-      
+
       if (error.message === 'Pagamento não encontrado') {
         return sendError(res, error.message, 404);
       }
-      
+
       if (error.message === 'Apenas pagamentos pendentes podem ser cancelados') {
         return sendError(res, error.message, 400);
       }
-      
+
       return sendError(res, error.message, 400);
     }
   }
@@ -260,13 +260,15 @@ class PaymentController {
    */
   async handleWebhook(req, res) {
     try {
-      // Validar assinatura
-      const signature = 
-        req.headers['asaas-access-token'] || 
+      // Validar assinatura (o Asaas envia via header asaas-access-token)
+      const signature =
+        req.headers['asaas-access-token'] ||
         req.headers['x-asaas-signature'];
 
+      console.log(`🔔 Webhook recebido do IP: ${req.ip} | asaas-access-token presente: ${!!req.headers['asaas-access-token']}`);
+
       if (!paymentService.validateWebhookSignature(req.body, signature)) {
-        console.error('❌ Webhook signature inválida');
+        console.error('❌ Webhook signature inválida - resposta 401 enviada ao Asaas');
         return res.status(401).json({ error: 'Invalid signature' });
       }
 
@@ -285,7 +287,7 @@ class PaymentController {
       if (isSubscriptionEvent && subscription) {
         // Processar webhook de assinatura
         console.log(`📋 Processando webhook de assinatura: ${subscription.id}`);
-        
+
         subscriptionService.handleSubscriptionWebhook(event, subscription)
           .then(success => {
             if (success) {
@@ -300,7 +302,7 @@ class PaymentController {
       } else if (payment) {
         // Processar webhook de pagamento único
         console.log(`💳 Processando webhook de pagamento: ${payment.id}`);
-        
+
         paymentService.processWebhook(event, payment)
           .then(success => {
             if (success) {

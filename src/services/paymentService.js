@@ -23,10 +23,10 @@ class PaymentService {
 
       // Preparar dados do cliente
       // Se não tiver CPF, usar um CPF válido de teste
-      const cpfCnpj = user.cpf?.replace(/\D/g, '') || 
-                      user.cpf_cnpj?.replace(/\D/g, '') ||
-                      '12345678909'; // CPF válido para testes
-      
+      const cpfCnpj = user.cpf?.replace(/\D/g, '') ||
+        user.cpf_cnpj?.replace(/\D/g, '') ||
+        '12345678909'; // CPF válido para testes
+
       // Criar novo cliente no Asaas
       const response = await axios.post(
         `${asaasConfig.apiUrl}/customers`,
@@ -66,7 +66,7 @@ class PaymentService {
     } catch (error) {
       console.error('❌ Erro ao criar cliente Asaas:', error.response?.data || error.message);
       throw new Error(
-        error.response?.data?.errors?.[0]?.description || 
+        error.response?.data?.errors?.[0]?.description ||
         'Erro ao criar cliente no gateway de pagamento'
       );
     }
@@ -133,7 +133,7 @@ class PaymentService {
 
         if (!user.cpf || !address?.postal_code) {
           const missingFields = [];
-          if (!user.cpf)             missingFields.push('CPF');
+          if (!user.cpf) missingFields.push('CPF');
           if (!address?.postal_code) missingFields.push('CEP');
           const err = new Error('Cadastro incompleto. Por favor, preencha seu CPF e CEP antes de pagar com cartão.');
           err.status = 422;
@@ -142,7 +142,7 @@ class PaymentService {
         }
 
         const [expiryMonth, expiryYear] = String(creditCardData.expiryDate).split('/');
-        
+
         paymentPayload.creditCard = {
           holderName: String(creditCardData.holderName).trim(),
           number: String(creditCardData.number).replace(/[\s-]/g, ''),
@@ -202,7 +202,7 @@ class PaymentService {
 
       if (paymentMethod === 'PIX') {
         methodData = await this.getPixQrCode(payment.id);
-        
+
         // Atualizar com dados do PIX
         await supabase
           .from('payments')
@@ -261,7 +261,7 @@ class PaymentService {
     } catch (error) {
       console.error('❌ Erro ao criar pagamento:', error.response?.data || error.message);
       throw new Error(
-        error.response?.data?.errors?.[0]?.description || 
+        error.response?.data?.errors?.[0]?.description ||
         error.message ||
         'Erro ao processar pagamento'
       );
@@ -379,7 +379,7 @@ class PaymentService {
 
       if (filters.offset) {
         query = query.range(
-          parseInt(filters.offset), 
+          parseInt(filters.offset),
           parseInt(filters.offset) + parseInt(filters.limit || 20) - 1
         );
       }
@@ -453,7 +453,7 @@ class PaymentService {
     } catch (error) {
       console.error('❌ Erro ao cancelar pagamento:', error.response?.data || error.message);
       throw new Error(
-        error.response?.data?.errors?.[0]?.description || 
+        error.response?.data?.errors?.[0]?.description ||
         error.message ||
         'Erro ao cancelar pagamento'
       );
@@ -462,28 +462,47 @@ class PaymentService {
 
   /**
    * Validar assinatura do webhook
+   * O Asaas envia o accessToken configurado no painel via header asaas-access-token.
+   * Se ASAAS_WEBHOOK_SECRET não estiver definido, a validação é ignorada.
+   * Se estiver definido, o accessToken configurado no painel Asaas DEVE ser igual ao secret.
    */
   validateWebhookSignature(payload, signature) {
     if (!asaasConfig.webhookSecret) {
-      console.warn('⚠️  ASAAS_WEBHOOK_SECRET não configurada - validação ignorada');
+      console.warn('⚠️  ASAAS_WEBHOOK_SECRET não configurada - validação de assinatura ignorada');
       return true;
     }
 
     if (!signature) {
-      console.warn('⚠️  Webhook sem header de autenticação');
+      console.error(
+        '❌ Webhook recebido sem header asaas-access-token.\n' +
+        '   Verifique se o accessToken está configurado no painel Asaas:\n' +
+        '   Painel Asaas → Integrações → Webhooks → [seu webhook] → Access Token\n' +
+        '   O valor deve ser igual ao ASAAS_WEBHOOK_SECRET configurado na aplicação.\n' +
+        '   Caso não queira usar validação, remova ASAAS_WEBHOOK_SECRET do ambiente.'
+      );
       return false;
     }
 
-    // O Asaas envia o accessToken configurado no dashboard via header asaas-access-token
-    // É uma comparação direta de strings (tempo constante para evitar timing attacks)
     const expected = Buffer.from(asaasConfig.webhookSecret);
     const received = Buffer.from(signature);
 
     if (expected.length !== received.length) {
+      console.error(
+        `❌ Assinatura do webhook com tamanho diferente do esperado.\n` +
+        `   Esperado: ${expected.length} chars | Recebido: ${received.length} chars\n` +
+        `   Certifique-se que o accessToken no painel Asaas é idêntico ao ASAAS_WEBHOOK_SECRET.`
+      );
       return false;
     }
 
-    return crypto.timingSafeEqual(expected, received);
+    const valid = crypto.timingSafeEqual(expected, received);
+    if (!valid) {
+      console.error(
+        '❌ Assinatura do webhook não corresponde.\n' +
+        '   Sincronize o accessToken do painel Asaas com o ASAAS_WEBHOOK_SECRET da aplicação.'
+      );
+    }
+    return valid;
   }
 
   /**
@@ -513,7 +532,7 @@ class PaymentService {
             .from('payments')
             .update({ status: 'OVERDUE' })
             .eq('asaas_payment_id', paymentData.id);
-          
+
           console.log(`⏰ Pagamento vencido: ${paymentData.id}`);
           break;
 
@@ -523,7 +542,7 @@ class PaymentService {
             .from('payments')
             .update({ status: 'CANCELLED' })
             .eq('asaas_payment_id', paymentData.id);
-          
+
           console.log(`🗑️  Pagamento cancelado: ${paymentData.id}`);
           break;
 
@@ -533,7 +552,7 @@ class PaymentService {
             .from('payments')
             .update({ status: 'REFUNDED' })
             .eq('asaas_payment_id', paymentData.id);
-          
+
           console.log(`↩️  Pagamento estornado: ${paymentData.id}`);
           break;
 
