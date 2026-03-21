@@ -78,6 +78,9 @@ export const getProfile = async (req, res) => {
         bio, 
         avatar,
         plan_id,
+        plan_status,
+        plan_activated_at,
+        plan_expires_at,
         last_login,
         created_at, 
         updated_at,
@@ -333,7 +336,7 @@ export const changePassword = async (req, res) => {
     // Atualizar senha
     const { error: updateError } = await supabaseAdmin
       .from('users')
-      .update({ 
+      .update({
         password: hashedPassword,
         updated_at: new Date().toISOString()
       })
@@ -399,7 +402,7 @@ export const uploadAvatar = (req, res) => {
       // Atualizar avatar no banco
       const { error: updateError } = await supabaseAdmin
         .from('users')
-        .update({ 
+        .update({
           avatar: avatarUrl,
           updated_at: new Date().toISOString()
         })
@@ -462,7 +465,7 @@ export const removeAvatar = async (req, res) => {
     // Remover avatar do banco
     const { error: updateError } = await supabaseAdmin
       .from('users')
-      .update({ 
+      .update({
         avatar: null,
         updated_at: new Date().toISOString()
       })

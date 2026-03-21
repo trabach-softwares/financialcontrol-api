@@ -10,8 +10,11 @@ import { planLimitsService, PLAN_LIMITS } from '../services/planLimitsService.js
  */
 export const PLAN_IDS = {
   FREE: '3c25d559-fb8a-436c-a414-e4991e6e6f4c',
-  // PRO: 'adicionar-id-aqui-quando-necessario',
-  // ENTERPRISE: 'adicionar-id-aqui-quando-necessario'
+
+  // Variantes Pro — mesmo tier de funcionalidades, ciclos diferentes
+  PRO_MONTHLY: 'a1b2c3d4-0001-4000-8000-000000000001',
+  PRO_QUARTERLY: 'a1b2c3d4-0001-4000-8000-000000000002',
+  PRO_YEARLY: 'a1b2c3d4-0001-4000-8000-000000000003',
 };
 
 /**
@@ -22,7 +25,7 @@ export const PLAN_IDS = {
  */
 export async function requireFeature(userId, featureName) {
   const check = await planLimitsService.canAccessFeature(userId, featureName);
-  
+
   if (!check.allowed) {
     const error = new Error(`Feature ${featureName} não disponível no plano ${check.planName}`);
     error.status = 403;
@@ -34,7 +37,7 @@ export async function requireFeature(userId, featureName) {
     };
     throw error;
   }
-  
+
   return true;
 }
 
@@ -46,7 +49,7 @@ export async function requireFeature(userId, featureName) {
 export async function getUserFeatures(userId) {
   const plan = await planLimitsService.getUserPlan(userId);
   const limits = planLimitsService.getPlanLimits(plan.name);
-  
+
   return {
     planName: plan.name,
     features: limits.features
@@ -95,7 +98,7 @@ export function getUpgradeMessage(currentPlan, requiredPlan) {
     'Gratuito-Premium': '⭐ Faça upgrade para o plano Premium por R$ 89,90/mês e tenha acesso completo a todas as features, incluindo integração bancária e IA!',
     'Pro-Premium': '⭐ Upgrade para Premium por R$ 89,90/mês e desbloqueie integração bancária, IA para categorização, multi-usuários e suporte 24/7!'
   };
-  
+
   const key = `${currentPlan}-${requiredPlan}`;
   return messages[key] || `Faça upgrade para o plano ${requiredPlan} para ter acesso a esta funcionalidade.`;
 }
@@ -114,10 +117,10 @@ export function formatLimitInfo(limitInfo) {
       isNearLimit: false
     };
   }
-  
+
   const percentage = (limitInfo.current / limitInfo.limit) * 100;
   const isNearLimit = percentage >= 80;
-  
+
   return {
     ...limitInfo,
     displayText: `${limitInfo.current} de ${limitInfo.limit}`,
@@ -140,7 +143,7 @@ export function getFeaturesList() {
     excelExport: { name: 'Exportação Excel', requiredPlan: 'Pro' },
     financialGoals: { name: 'Metas Financeiras', requiredPlan: 'Pro' },
     prioritySupport: { name: 'Suporte Prioritário', requiredPlan: 'Pro' },
-    
+
     // Features do plano Premium
     bankIntegration: { name: 'Integração Bancária', requiredPlan: 'Premium' },
     autoImport: { name: 'Importação Automática', requiredPlan: 'Premium' },
@@ -174,21 +177,21 @@ export function getUpgradeSuggestion(limitsInfo) {
   if (!limitsInfo.plan || limitsInfo.plan.name === 'Premium') {
     return null; // Já está no melhor plano
   }
-  
+
   const { transactions, categories, accounts } = limitsInfo.limits;
-  
+
   // Verifica se atingiu algum limite
-  const hasReachedLimit = 
-    !transactions.allowed || 
-    !categories.allowed || 
+  const hasReachedLimit =
+    !transactions.allowed ||
+    !categories.allowed ||
     !accounts.allowed;
-  
+
   // Verifica se está próximo do limite (>80%)
-  const isNearLimit = 
+  const isNearLimit =
     (transactions.limit && (transactions.current / transactions.limit) > 0.8) ||
     (categories.limit && (categories.current / categories.limit) > 0.8) ||
     (accounts.limit && (accounts.current / accounts.limit) > 0.8);
-  
+
   if (hasReachedLimit) {
     return {
       urgency: 'high',
@@ -198,7 +201,7 @@ export function getUpgradeSuggestion(limitsInfo) {
       priority: 1
     };
   }
-  
+
   if (isNearLimit) {
     return {
       urgency: 'medium',
@@ -208,7 +211,7 @@ export function getUpgradeSuggestion(limitsInfo) {
       priority: 2
     };
   }
-  
+
   return {
     urgency: 'low',
     reason: 'feature-unlock',

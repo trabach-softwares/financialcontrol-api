@@ -14,7 +14,7 @@ class PaymentController {
    */
   async createPayment(req, res) {
     try {
-      const { planId, paymentMethod, creditCard } = req.body;
+      const { planId, paymentMethod, creditCard, billingCycle } = req.body;
       const userId = req.user.id;
 
       // Validações
@@ -31,6 +31,17 @@ class PaymentController {
         return sendError(
           res,
           `Método de pagamento inválido. Use: ${validMethods.join(', ')}`,
+          400
+        );
+      }
+
+      // Validar ciclo de cobrança (obrigatório para PIX e BOLETO)
+      const validCycles = ['MONTHLY', 'QUARTERLY', 'YEARLY'];
+      const cycle = billingCycle || 'MONTHLY';
+      if (['PIX', 'BOLETO'].includes(paymentMethod) && !validCycles.includes(cycle)) {
+        return sendError(
+          res,
+          `Ciclo inválido. Use: ${validCycles.join(', ')}`,
           400
         );
       }
@@ -90,14 +101,24 @@ class PaymentController {
         userId,
         planId,
         paymentMethod,
-        creditCard
+        creditCard,
+        cycle
       );
 
-      return sendSuccess(res, result, 'Pagamento criado com sucesso', 201);
+      const message = result.existing
+        ? 'Pagamento PIX pendente retornado'
+        : 'Pagamento criado com sucesso';
+
+      return sendSuccess(res, result, message, result.existing ? 200 : 201);
 
     } catch (error) {
       console.error('❌ Erro ao criar pagamento:', error);
-      return sendError(res, error.message, 400);
+      const status = error.status || 400;
+      return res.status(status).json({
+        success: false,
+        message: error.message,
+        ...(error.data && { data: error.data })
+      });
     }
   }
 

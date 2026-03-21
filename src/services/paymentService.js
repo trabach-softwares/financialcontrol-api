@@ -7,6 +7,7 @@ import axios from 'axios';
 import crypto from 'crypto';
 import { asaasConfig } from '../config/asaas.js';
 import { supabaseAdmin as supabase } from '../config/supabase.js';
+import { nowBR } from '../utils/response.js';
 
 class PaymentService {
   /**
@@ -75,7 +76,7 @@ class PaymentService {
   /**
    * Criar pagamento (PIX, Boleto ou Cartão)
    */
-  async createPayment(userId, planId, paymentMethod, creditCardData = null) {
+  async createPayment(userId, planId, paymentMethod, creditCardData = null, billingCycle = 'MONTHLY') {
     try {
       // 1. Buscar plano
       const { data: plan, error: planError } = await supabase
@@ -94,6 +95,9 @@ class PaymentService {
         throw new Error('Plano gratuito não requer pagamento. O plano já está ativo.');
       }
 
+      // Priorizar o billing_cycle do próprio plano (quando o plano já tem ciclo definido)
+      const effectiveCycle = plan.billing_cycle || billingCycle;
+
       // 2. Buscar usuário
       const { data: user, error: userError } = await supabase
         .from('users')
@@ -105,10 +109,55 @@ class PaymentService {
         throw new Error('Usuário não encontrado');
       }
 
-      // 3. Obter/Criar cliente Asaas
+      // 3. Verificar se há pagamento PIX pendente (não expirado)
+      if (paymentMethod === 'PIX') {
+        const { data: pendingPix } = await supabase
+          .from('payments')
+          .select('asaas_payment_id, pix_expires_at, pix_payload, pix_qr_code_image, created_at, value, plan_id')
+          .eq('user_id', userId)
+          .eq('payment_method', 'PIX')
+          .eq('status', 'PENDING')
+          .order('created_at', { ascending: false })
+          .limit(1)
+          .maybeSingle();
+
+        if (pendingPix) {
+          // Sempre calcular expiração como created_at + 10min (ignorar valor antigo do Asaas)
+          const createdAt = new Date(pendingPix.created_at);
+          const expiresAt = new Date(createdAt.getTime() + 10 * 60 * 1000);
+
+          if (expiresAt > new Date()) {
+            const secondsLeft = Math.ceil((expiresAt - new Date()) / 1000);
+
+            // Retornar PIX existente ao invés de erro
+            return {
+              existing: true,
+              payment: {
+                id: pendingPix.asaas_payment_id,
+                status: 'PENDING',
+                value: parseFloat(pendingPix.value)
+              },
+              pix: {
+                qrCodeImage: pendingPix.pix_qr_code_image,
+                payload: pendingPix.pix_payload,
+                expiresAt: expiresAt.toISOString(),
+                secondsLeft
+              }
+            };
+          }
+
+          // PIX expirado — marcar como cancelado para liberar novo
+          await supabase
+            .from('payments')
+            .update({ status: 'CANCELLED' })
+            .eq('asaas_payment_id', pendingPix.asaas_payment_id);
+        }
+      }
+
+      // 4. Obter/Criar cliente Asaas
       const customerId = await this.getOrCreateAsaasCustomer(user);
 
-      // 4. Preparar payload da cobrança
+      // 5. Preparar payload da cobrança
       const dueDate = new Date();
       dueDate.setDate(dueDate.getDate() + asaasConfig.payment.defaultDueDays);
 
@@ -161,9 +210,22 @@ class PaymentService {
         };
       }
 
+      // PIX: definir expiração de 10 minutos no Asaas
+      // O Asaas aceita o campo pixExpirationDate no formato "YYYY-MM-DD HH:MM:SS" (horário de Brasília UTC-3)
+      if (paymentMethod === 'PIX') {
+        const pixExpiration = new Date(Date.now() + 10 * 60 * 1000);
+        // Converter para horário de Brasília (UTC-3) no formato esperado pelo Asaas
+        const brTime = new Date(pixExpiration.getTime() - 3 * 60 * 60 * 1000);
+        const pad = n => String(n).padStart(2, '0');
+        paymentPayload.pixExpirationDate = [
+          `${brTime.getUTCFullYear()}-${pad(brTime.getUTCMonth() + 1)}-${pad(brTime.getUTCDate())}`,
+          `${pad(brTime.getUTCHours())}:${pad(brTime.getUTCMinutes())}:${pad(brTime.getUTCSeconds())}`
+        ].join(' ');
+      }
+
       console.log(`💳 Criando cobrança Asaas (${paymentMethod}) - R$ ${plan.price}`);
 
-      // 5. Criar cobrança no Asaas
+      // 6. Criar cobrança no Asaas
       const asaasResponse = await axios.post(
         `${asaasConfig.apiUrl}/payments`,
         paymentPayload,
@@ -184,6 +246,7 @@ class PaymentService {
           asaas_customer_id: customerId,
           value: payment.value,
           payment_method: paymentMethod,
+          billing_cycle: effectiveCycle,
           status: payment.status,
           due_date: payment.dueDate,
           invoice_url: payment.invoiceUrl,
@@ -203,15 +266,20 @@ class PaymentService {
       if (paymentMethod === 'PIX') {
         methodData = await this.getPixQrCode(payment.id);
 
+        // Garantir expiração de 10 minutos a partir de agora (horário Brasília)
+        const pixExpiresAt = new Date(Date.now() - 3 * 60 * 60 * 1000 + 10 * 60 * 1000).toISOString();
+
         // Atualizar com dados do PIX
         await supabase
           .from('payments')
           .update({
             pix_payload: methodData.payload,
             pix_qr_code_image: methodData.qrCodeImage,
-            pix_expires_at: methodData.expiresAt
+            pix_expires_at: pixExpiresAt
           })
           .eq('asaas_payment_id', payment.id);
+
+        methodData.expiresAt = pixExpiresAt;
       }
 
       if (paymentMethod === 'BOLETO') {
@@ -280,8 +348,8 @@ class PaymentService {
 
       return {
         qrCodeImage: `data:image/png;base64,${response.data.encodedImage}`,
-        payload: response.data.payload,
-        expiresAt: response.data.expirationDate
+        payload: response.data.payload
+        // expiresAt é sempre calculado como created_at + 10min no banco
       };
     } catch (error) {
       console.error('❌ Erro ao buscar QR Code PIX:', error.response?.data || error.message);
@@ -325,19 +393,22 @@ class PaymentService {
 
         // Atualizar se o status mudou
         if (asaasPayment.status !== payment.status) {
+          const syncNow = nowBR();
+          const isPaid = ['RECEIVED', 'CONFIRMED'].includes(asaasPayment.status);
+
           await supabase
             .from('payments')
             .update({
               status: asaasPayment.status,
-              paid_at: asaasPayment.paymentDate,
-              confirmed_at: asaasPayment.confirmedDate,
+              paid_at: isPaid ? syncNow : payment.paid_at,
+              confirmed_at: isPaid ? syncNow : payment.confirmed_at,
               net_value: asaasPayment.netValue
             })
             .eq('asaas_payment_id', asaasPaymentId);
 
           payment.status = asaasPayment.status;
-          payment.paid_at = asaasPayment.paymentDate;
-          payment.confirmed_at = asaasPayment.confirmedDate;
+          payment.paid_at = isPaid ? syncNow : payment.paid_at;
+          payment.confirmed_at = isPaid ? syncNow : payment.confirmed_at;
         }
       }
 
@@ -577,18 +648,33 @@ class PaymentService {
   }
 
   /**
+   * Calcular data de expiração do plano conforme ciclo de cobrança
+   */
+  calculatePlanExpiresAt(billingCycle) {
+    const now = new Date();
+    switch (billingCycle) {
+      case 'QUARTERLY': { const d = new Date(now); d.setMonth(d.getMonth() + 3); return d.toISOString(); }
+      case 'YEARLY': { const d = new Date(now); d.setFullYear(d.getFullYear() + 1); return d.toISOString(); }
+      case 'MONTHLY':
+      default: { const d = new Date(now); d.setMonth(d.getMonth() + 1); return d.toISOString(); }
+    }
+  }
+
+  /**
    * Tratar pagamento confirmado
    */
   async handlePaymentConfirmed(paymentData, userId) {
     try {
+      const now = nowBR();
+
       // Atualizar tabela payments
       const { error: paymentError } = await supabase
         .from('payments')
         .update({
           status: paymentData.status,
           net_value: paymentData.netValue,
-          paid_at: paymentData.paymentDate,
-          confirmed_at: paymentData.confirmedDate
+          paid_at: now,
+          confirmed_at: now
         })
         .eq('asaas_payment_id', paymentData.id);
 
@@ -596,10 +682,10 @@ class PaymentService {
         throw new Error('Erro ao atualizar pagamento');
       }
 
-      // Buscar plan_id do pagamento
+      // Buscar plan_id e billing_cycle do pagamento
       const { data: payment, error: fetchError } = await supabase
         .from('payments')
-        .select('plan_id')
+        .select('plan_id, billing_cycle')
         .eq('asaas_payment_id', paymentData.id)
         .single();
 
@@ -607,13 +693,16 @@ class PaymentService {
         throw new Error('Pagamento não encontrado no banco local');
       }
 
+      const planExpiresAt = this.calculatePlanExpiresAt(payment.billing_cycle || 'MONTHLY');
+
       // Atualizar plano do usuário
       const { error: userError } = await supabase
         .from('users')
         .update({
           plan_id: payment.plan_id,
           plan_status: 'active',
-          plan_activated_at: new Date().toISOString()
+          plan_activated_at: nowBR(),
+          plan_expires_at: planExpiresAt
         })
         .eq('id', userId);
 
@@ -621,10 +710,7 @@ class PaymentService {
         throw new Error('Erro ao ativar plano do usuário');
       }
 
-      console.log(`✅ Plano ativado para usuário ${userId} - Pagamento: ${paymentData.id}`);
-
-      // TODO: Enviar email de confirmação
-      // await this.sendConfirmationEmail(userId, paymentData);
+      console.log(`✅ Plano ativado para usuário ${userId} - Expira em: ${planExpiresAt} - Pagamento: ${paymentData.id}`);
 
       return true;
 
@@ -648,7 +734,7 @@ class PaymentService {
         .from('subscriptions')
         .update({
           status: 'ACTIVE',
-          last_payment_date: paymentData.paymentDate || paymentData.confirmedDate || new Date().toISOString()
+          last_payment_date: nowBR()
         })
         .eq('asaas_subscription_id', asaasSubscriptionId);
 

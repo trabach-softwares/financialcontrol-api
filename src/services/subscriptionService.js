@@ -9,13 +9,14 @@ import axios from 'axios';
 import { asaasConfig } from '../config/asaas.js';
 import { supabaseAdmin } from '../config/supabase.js';
 import { PLAN_IDS } from '../utils/planFeatures.js';
+import { nowBR } from '../utils/response.js';
 
 /**
  * Service de Assinaturas Recorrentes
  * Implementa pagamentos trimestral (QUARTERLY) e anual (YEARLY)
  */
 export const subscriptionService = {
-  
+
   /**
    * Ciclos de assinatura disponíveis no Asaas
    * @enum {string}
@@ -124,8 +125,8 @@ export const subscriptionService = {
 
       // 5a. Validar campos obrigatórios do cadastro para pagamento com cartão
       const missingFields = [];
-      if (!user.cpf)       missingFields.push('CPF');
-      if (!postalCode)     missingFields.push('CEP');
+      if (!user.cpf) missingFields.push('CPF');
+      if (!postalCode) missingFields.push('CEP');
 
       if (missingFields.length > 0) {
         console.warn(`⚠️  Cadastro incompleto para usuário ${userId}: ${missingFields.join(', ')}`);
@@ -157,7 +158,7 @@ export const subscriptionService = {
         nextDueDate: formattedDueDate,
         description: `Assinatura ${plan.name} - ${this._getCycleLabel(cycle)}`,
         externalReference: userId, // Para facilitar busca reversa
-        
+
         // Dados do cartão
         creditCard: {
           holderName: String(creditCardData.holderName).trim(),
@@ -170,7 +171,7 @@ export const subscriptionService = {
           })(),
           ccv: String(creditCardData.cvv)
         },
-        
+
         // Informações do titular do cartão
         creditCardHolderInfo: {
           name: String(creditCardData.holderName).trim(), // nome como no cartão
@@ -250,7 +251,7 @@ export const subscriptionService = {
         .update({
           plan_id: planId,
           plan_status: 'active',
-          plan_activated_at: new Date().toISOString(),
+          plan_activated_at: nowBR(),
           subscription_id: savedSubscription.id,
           subscription_cycle: cycle,
           subscription_status: 'active'
@@ -290,13 +291,18 @@ export const subscriptionService = {
       };
 
     } catch (error) {
-      console.error('❌ Erro ao criar assinatura:', error.response?.data || error.message);
-      
-      // Extrair mensagem de erro amigável
-      const errorMessage = error.response?.data?.errors?.[0]?.description || 
-                          error.message ||
-                          'Erro ao criar assinatura';
-      
+      // Log completo da resposta do Asaas para diagnóstico
+      if (error.response) {
+        console.error('❌ Erro Asaas — status HTTP:', error.response.status);
+        console.error('❌ Erro Asaas — body completo:', JSON.stringify(error.response.data, null, 2));
+      } else {
+        console.error('❌ Erro ao criar assinatura:', error.message);
+      }
+
+      const errorMessage = error.response?.data?.errors?.[0]?.description ||
+        error.message ||
+        'Erro ao criar assinatura';
+
       throw new Error(errorMessage);
     }
   },
@@ -341,8 +347,8 @@ export const subscriptionService = {
       console.log(`✅ Assinatura cancelada no Asaas`);
 
       // 3. Atualizar no banco
-      const now = new Date().toISOString();
-      
+      const now = nowBR();
+
       const { error: updateError } = await supabaseAdmin
         .from('subscriptions')
         .update({
@@ -384,11 +390,11 @@ export const subscriptionService = {
 
     } catch (error) {
       console.error('❌ Erro ao cancelar assinatura:', error.response?.data || error.message);
-      
-      const errorMessage = error.response?.data?.errors?.[0]?.description || 
-                          error.message ||
-                          'Erro ao cancelar assinatura';
-      
+
+      const errorMessage = error.response?.data?.errors?.[0]?.description ||
+        error.message ||
+        'Erro ao cancelar assinatura';
+
       throw new Error(errorMessage);
     }
   },
@@ -524,11 +530,11 @@ export const subscriptionService = {
 
     } catch (error) {
       console.error('❌ Erro ao atualizar cartão:', error.response?.data || error.message);
-      
-      const errorMessage = error.response?.data?.errors?.[0]?.description || 
-                          error.message ||
-                          'Erro ao atualizar cartão';
-      
+
+      const errorMessage = error.response?.data?.errors?.[0]?.description ||
+        error.message ||
+        'Erro ao atualizar cartão';
+
       throw new Error(errorMessage);
     }
   },
@@ -594,23 +600,23 @@ export const subscriptionService = {
    */
   _calculatePrice(plan, cycle) {
     const monthlyPrice = parseFloat(plan.price);
-    
+
     switch (cycle) {
       case this.CYCLES.MONTHLY:
         return monthlyPrice;
-      
+
       case this.CYCLES.QUARTERLY:
         // Trimestral: 10% desconto (3 meses pagando 2.7)
         return Math.round(monthlyPrice * 3 * (1 - this.DISCOUNTS.QUARTERLY) * 100) / 100;
-      
+
       case this.CYCLES.SEMIANNUALLY:
         // Semestral: 15% desconto
         return Math.round(monthlyPrice * 6 * (1 - this.DISCOUNTS.SEMIANNUALLY) * 100) / 100;
-      
+
       case this.CYCLES.YEARLY:
         // Anual: 17% desconto (12 meses pagando 10)
         return Math.round(monthlyPrice * 12 * (1 - this.DISCOUNTS.YEARLY) * 100) / 100;
-      
+
       default:
         return monthlyPrice;
     }
@@ -674,7 +680,7 @@ export const subscriptionService = {
       .update({
         status: subscriptionData.status || 'ACTIVE',
         next_due_date: subscriptionData.nextDueDate,
-        last_payment_date: new Date().toISOString(),
+        last_payment_date: nowBR(),
         value: subscriptionData.value
       })
       .eq('asaas_subscription_id', subscriptionData.id);
@@ -703,7 +709,7 @@ export const subscriptionService = {
       .from('subscriptions')
       .update({
         status: 'ACTIVE',
-        last_payment_date: new Date().toISOString()
+        last_payment_date: nowBR()
       })
       .eq('asaas_subscription_id', subscriptionData.subscription || subscriptionData.id);
 
@@ -728,7 +734,7 @@ export const subscriptionService = {
       .from('subscriptions')
       .update({
         status: 'CANCELLED',
-        cancelled_at: new Date().toISOString()
+        cancelled_at: nowBR()
       })
       .eq('asaas_subscription_id', subscriptionData.id);
 
@@ -747,7 +753,7 @@ export const subscriptionService = {
       .from('subscriptions')
       .update({
         status: 'CANCELLED',
-        cancelled_at: new Date().toISOString()
+        cancelled_at: nowBR()
       })
       .eq('asaas_subscription_id', subscriptionData.id);
 
@@ -775,7 +781,7 @@ export const subscriptionService = {
       .update({
         status: 'ACTIVE',
         next_due_date: subscriptionData.nextDueDate,
-        last_payment_date: new Date().toISOString()
+        last_payment_date: nowBR()
       })
       .eq('asaas_subscription_id', subscriptionData.subscription);
 
@@ -800,7 +806,7 @@ export const subscriptionService = {
       .from('subscriptions')
       .update({
         status: 'EXPIRED',
-        expires_at: new Date().toISOString()
+        expires_at: nowBR()
       })
       .eq('asaas_subscription_id', subscriptionData.id);
 
@@ -826,7 +832,7 @@ export const subscriptionService = {
       .from('subscriptions')
       .update({
         status: 'CANCELLED',
-        cancelled_at: new Date().toISOString()
+        cancelled_at: nowBR()
       })
       .eq('asaas_subscription_id', subscriptionData.id);
 
