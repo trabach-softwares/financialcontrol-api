@@ -65,7 +65,7 @@ export const subscriptionService = {
    * @returns {Promise<object>} Dados da assinatura criada
    * @throws {Error} Se houver erro na criação
    */
-  async createSubscription(userId, planId, cycle, creditCardData) {
+  async createSubscription(userId, planId, cycle, creditCardData, remoteIp) {
     try {
       console.log(`📝 Criando assinatura ${cycle} para usuário ${userId}`);
 
@@ -174,13 +174,16 @@ export const subscriptionService = {
 
         // Informações do titular do cartão
         creditCardHolderInfo: {
-          name: String(creditCardData.holderName).trim(), // nome como no cartão
+          name: String(creditCardData.holderName).trim(),
           email: user.email,
           cpfCnpj: user.cpf.replace(/\D/g, ''),
           postalCode: postalCode.replace(/\D/g, ''),
           addressNumber: address?.number || user.address_number || 'S/N',
-          phone: user.phone?.replace(/\D/g, '') || undefined,
-          mobilePhone: user.phone?.replace(/\D/g, '') || undefined
+          // Asaas aceita phone com DDD (10-11 dígitos) ou sem (8-9 dígitos)
+          // Enviar apenas mobilePhone para evitar conflito
+          mobilePhone: user.phone?.replace(/\D/g, '') || undefined,
+          // IP do usuário final — obrigatório pelo Asaas para antifraude
+          remoteIp: remoteIp || '127.0.0.1'
         }
       };
 

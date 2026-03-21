@@ -150,11 +150,24 @@ export const subscriptionController = {
       // Criar assinatura
       // ========================================
 
+      // Capturar IP real do cliente (considera proxies como Render/Vercel)
+      let remoteIp =
+        req.headers['x-forwarded-for']?.split(',')[0].trim() ||
+        req.socket?.remoteAddress ||
+        req.ip ||
+        '127.0.0.1';
+
+      // Normalizar IPv6 loopback para IPv4 (ambiente local / desenvolvimento)
+      if (remoteIp === '::1' || remoteIp === '::ffff:127.0.0.1') {
+        remoteIp = '127.0.0.1';
+      }
+
       const subscription = await subscriptionService.createSubscription(
         userId,
         planId,
         cycle,
-        creditCardData
+        creditCardData,
+        remoteIp
       );
 
       console.log(`[subscriptionController.create] ✅ Assinatura criada: ${subscription.subscription.id}`);
