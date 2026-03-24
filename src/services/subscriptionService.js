@@ -144,10 +144,8 @@ export const subscriptionService = {
 
       console.log(`✅ Customer Asaas: ${customerId}`);
 
-      // 7. Calcular próxima data de vencimento (3 dias úteis)
-      const nextDueDate = new Date();
-      nextDueDate.setDate(nextDueDate.getDate() + 3);
-      const formattedDueDate = nextDueDate.toISOString().split('T')[0];
+      // 7. Data de vencimento = hoje (cobrança imediata no cartão)
+      const formattedDueDate = new Date().toISOString().split('T')[0];
 
       // 7. Preparar payload da assinatura
       const subscriptionPayload = {
