@@ -729,7 +729,36 @@ class PaymentService {
       const asaasSubscriptionId = paymentData.subscription;
       console.log(`🔁 Renovação de assinatura confirmada: ${asaasSubscriptionId} - Usuário: ${userId}`);
 
-      // 1. Atualizar a assinatura no banco
+      // 1. Buscar assinatura local para obter plan_id e cycle
+      const { data: subscription } = await supabase
+        .from('subscriptions')
+        .select('plan_id, cycle, value')
+        .eq('asaas_subscription_id', asaasSubscriptionId)
+        .single();
+
+      // 2. Registrar cobrança na tabela payments (histórico)
+      const { error: paymentError } = await supabase
+        .from('payments')
+        .insert({
+          user_id: userId,
+          plan_id: subscription?.plan_id || null,
+          asaas_payment_id: paymentData.id,
+          payment_method: 'CREDIT_CARD',
+          amount: paymentData.value,
+          status: 'CONFIRMED',
+          billing_cycle: subscription?.cycle || 'MONTHLY',
+          paid_at: nowBR(),
+          confirmed_at: nowBR()
+        });
+
+      if (paymentError) {
+        // Não bloquear o fluxo por erro no histórico — só logar
+        console.error('❌ Erro ao registrar pagamento na tabela payments:', paymentError);
+      } else {
+        console.log(`✅ Pagamento de assinatura registrado em payments: ${paymentData.id}`);
+      }
+
+      // 3. Atualizar a assinatura no banco
       const { error: subError } = await supabase
         .from('subscriptions')
         .update({
@@ -743,12 +772,16 @@ class PaymentService {
         throw new Error('Erro ao atualizar assinatura');
       }
 
-      // 2. Garantir que o plano do usuário permanece ativo
+      // 4. Renovar plan_expires_at e manter plano ativo
+      const cycle = subscription?.cycle || 'MONTHLY';
+      const planExpiresAt = this.calculatePlanExpiresAt(cycle);
+
       const { error: userError } = await supabase
         .from('users')
         .update({
           plan_status: 'active',
-          subscription_status: 'active'
+          subscription_status: 'active',
+          plan_expires_at: planExpiresAt
         })
         .eq('id', userId);
 
@@ -757,7 +790,7 @@ class PaymentService {
         throw new Error('Erro ao atualizar status do usuário');
       }
 
-      console.log(`✅ Renovação processada com sucesso para usuário ${userId}`);
+      console.log(`✅ Renovação processada com sucesso para usuário ${userId} — expira em ${planExpiresAt}`);
     } catch (error) {
       console.error('❌ Erro ao processar renovação de assinatura:', error);
       throw error;
