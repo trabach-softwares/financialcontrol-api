@@ -12,13 +12,13 @@
 import { supabaseAdmin } from '../config/supabase.js';
 import { PLAN_IDS } from '../utils/planFeatures.js';
 
-const INTERVAL_MS = 60 * 60 * 1000; // 1 hora
-const WARNING_DAYS = 3;              // Avisar X dias antes de expirar
+const INTERVAL_MS = 60 * 60 * 1000;   // 1 hora
+const WARNING_HOURS = 24;             // Avisar 24h antes de expirar
 
 async function runExpirationCheck() {
     try {
         const now = new Date();
-        const warningDate = new Date(now.getTime() + WARNING_DAYS * 24 * 60 * 60 * 1000);
+        const warningDate = new Date(now.getTime() + WARNING_HOURS * 60 * 60 * 1000);
 
         console.log(`🕐 [PlanJob] Verificando planos expirados em ${now.toISOString()}`);
 
@@ -65,7 +65,7 @@ async function runExpirationCheck() {
         if (soonError) {
             console.error('❌ [PlanJob] Erro ao buscar planos a vencer:', soonError.message);
         } else if (expiringSoon && expiringSoon.length > 0) {
-            console.log(`⚠️  [PlanJob] ${expiringSoon.length} plano(s) expirando em ${WARNING_DAYS} dias`);
+            console.log(`⚠️  [PlanJob] ${expiringSoon.length} plano(s) expirando nas próximas ${WARNING_HOURS}h`);
 
             for (const user of expiringSoon) {
                 const { error } = await supabaseAdmin
