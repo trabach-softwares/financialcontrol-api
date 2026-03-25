@@ -14,7 +14,7 @@ import { sendSuccess, sendError } from '../utils/response.js';
  * Implementa CRUD de assinaturas recorrentes com cartão de crédito
  */
 export const subscriptionController = {
-  
+
   /**
    * Criar nova assinatura trimestral ou anual
    * 
@@ -57,8 +57,8 @@ export const subscriptionController = {
       const allowedCycles = ['MONTHLY', 'QUARTERLY', 'YEARLY'];
       if (!allowedCycles.includes(cycle)) {
         return sendError(
-          res, 
-          `Ciclo inválido. Use: ${allowedCycles.join(', ')}`, 
+          res,
+          `Ciclo inválido. Use: ${allowedCycles.join(', ')}`,
           400
         );
       }
@@ -69,18 +69,18 @@ export const subscriptionController = {
 
       // Validar campos obrigatórios do cartão
       const requiredCardFields = [
-        'holderName', 
-        'number', 
-        'expiryMonth', 
-        'expiryYear', 
+        'holderName',
+        'number',
+        'expiryMonth',
+        'expiryYear',
         'cvv'
       ];
 
       for (const field of requiredCardFields) {
         if (!creditCardData[field]) {
           return sendError(
-            res, 
-            `Campo "${field}" do cartão é obrigatório`, 
+            res,
+            `Campo "${field}" do cartão é obrigatório`,
             400
           );
         }
@@ -93,8 +93,8 @@ export const subscriptionController = {
       }
       if (cardNumber.length < 13 || cardNumber.length > 19) {
         return sendError(
-          res, 
-          'Número do cartão inválido (deve ter entre 13 e 19 dígitos)', 
+          res,
+          'Número do cartão inválido (deve ter entre 13 e 19 dígitos)',
           400
         );
       }
@@ -103,8 +103,8 @@ export const subscriptionController = {
       const cvvStr = String(creditCardData.cvv);
       if (!/^\d{3,4}$/.test(cvvStr)) {
         return sendError(
-          res, 
-          'CVV inválido (deve ter 3 ou 4 dígitos numéricos)', 
+          res,
+          'CVV inválido (deve ter 3 ou 4 dígitos numéricos)',
           400
         );
       }
@@ -113,15 +113,15 @@ export const subscriptionController = {
       const expiryMonth = parseInt(creditCardData.expiryMonth, 10);
       if (isNaN(expiryMonth) || expiryMonth < 1 || expiryMonth > 12) {
         return sendError(
-          res, 
-          'Mês de validade inválido (01-12)', 
+          res,
+          'Mês de validade inválido (01-12)',
           400
         );
       }
 
       // Validar ano + mês combinados (cartão não pode estar expirado)
       const now = new Date();
-      const currentYear  = now.getFullYear();
+      const currentYear = now.getFullYear();
       const currentMonth = now.getMonth() + 1;
       let expiryYear = parseInt(creditCardData.expiryYear, 10);
       // normalizar ano de 2 dígitos (ex: "26" → 2026)
@@ -173,9 +173,9 @@ export const subscriptionController = {
       console.log(`[subscriptionController.create] ✅ Assinatura criada: ${subscription.subscription.id}`);
 
       return sendSuccess(
-        res, 
-        subscription, 
-        'Assinatura criada com sucesso', 
+        res,
+        subscription,
+        'Assinatura criada com sucesso',
         201
       );
 
@@ -183,9 +183,9 @@ export const subscriptionController = {
       console.error('[subscriptionController.create] Erro:', error);
       const statusCode = error.status || 400;
       return sendError(
-        res, 
-        error.message || 'Erro ao criar assinatura', 
-        statusCode, 
+        res,
+        error.message || 'Erro ao criar assinatura',
+        statusCode,
         error.data
       );
     }
@@ -209,8 +209,8 @@ export const subscriptionController = {
 
       if (!subscription) {
         return sendSuccess(
-          res, 
-          null, 
+          res,
+          null,
           'Nenhuma assinatura ativa encontrada'
         );
       }
@@ -218,16 +218,16 @@ export const subscriptionController = {
       console.log(`[subscriptionController.getActive] ✅ Assinatura encontrada: ${subscription.id}`);
 
       return sendSuccess(
-        res, 
-        subscription, 
+        res,
+        subscription,
         'Assinatura encontrada'
       );
 
     } catch (error) {
       console.error('[subscriptionController.getActive] Erro:', error);
       return sendError(
-        res, 
-        error.message || 'Erro ao buscar assinatura', 
+        res,
+        error.message || 'Erro ao buscar assinatura',
         400
       );
     }
@@ -315,16 +315,16 @@ export const subscriptionController = {
       console.log(`[subscriptionController.cancel] ✅ Assinatura cancelada: ${id}`);
 
       return sendSuccess(
-        res, 
-        result, 
+        res,
+        result,
         'Assinatura cancelada com sucesso'
       );
 
     } catch (error) {
       console.error('[subscriptionController.cancel] Erro:', error);
       return sendError(
-        res, 
-        error.message || 'Erro ao cancelar assinatura', 
+        res,
+        error.message || 'Erro ao cancelar assinatura',
         400
       );
     }
@@ -369,18 +369,18 @@ export const subscriptionController = {
 
       // Validar campos obrigatórios do cartão
       const requiredCardFields = [
-        'holderName', 
-        'number', 
-        'expiryMonth', 
-        'expiryYear', 
+        'holderName',
+        'number',
+        'expiryMonth',
+        'expiryYear',
         'cvv'
       ];
 
       for (const field of requiredCardFields) {
         if (!creditCardData[field]) {
           return sendError(
-            res, 
-            `Campo "${field}" do cartão é obrigatório`, 
+            res,
+            `Campo "${field}" do cartão é obrigatório`,
             400
           );
         }
@@ -390,8 +390,8 @@ export const subscriptionController = {
       const cardNumber = creditCardData.number.replace(/\s/g, '');
       if (cardNumber.length < 13 || cardNumber.length > 19) {
         return sendError(
-          res, 
-          'Número do cartão inválido (deve ter entre 13 e 19 dígitos)', 
+          res,
+          'Número do cartão inválido (deve ter entre 13 e 19 dígitos)',
           400
         );
       }
@@ -399,8 +399,8 @@ export const subscriptionController = {
       // Validar CVV
       if (creditCardData.cvv.length < 3 || creditCardData.cvv.length > 4) {
         return sendError(
-          res, 
-          'CVV inválido (deve ter 3 ou 4 dígitos)', 
+          res,
+          'CVV inválido (deve ter 3 ou 4 dígitos)',
           400
         );
       }
@@ -416,16 +416,16 @@ export const subscriptionController = {
       console.log(`[subscriptionController.updateCard] ✅ Cartão atualizado: ${id}`);
 
       return sendSuccess(
-        res, 
-        result, 
+        res,
+        result,
         'Cartão atualizado com sucesso'
       );
 
     } catch (error) {
       console.error('[subscriptionController.updateCard] Erro:', error);
       return sendError(
-        res, 
-        error.message || 'Erro ao atualizar cartão', 
+        res,
+        error.message || 'Erro ao atualizar cartão',
         400
       );
     }
@@ -458,7 +458,7 @@ export const subscriptionController = {
       // Calcular preços para cada ciclo
       const pricing = plans.map(plan => {
         const monthlyPrice = parseFloat(plan.price);
-        
+
         return {
           plan: {
             id: plan.id,

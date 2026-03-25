@@ -26,7 +26,10 @@ export const userService = {
           email, 
           name, 
           role, 
-          plan_id, 
+          plan_id,
+          plan_status,
+          plan_activated_at,
+          plan_expires_at,
           created_at,
           updated_at,
           last_login,
@@ -51,7 +54,7 @@ export const userService = {
         .single();
 
       if (error) throw error;
-      
+
       // Restructure the response to have plan as a separate object
       const user = {
         id: data.id,
@@ -59,6 +62,9 @@ export const userService = {
         name: data.name,
         role: data.role,
         plan_id: data.plan_id,
+        plan_status: data.plan_status,
+        plan_activated_at: data.plan_activated_at,
+        plan_expires_at: data.plan_expires_at,
         created_at: data.created_at,
         updated_at: data.updated_at,
         last_login: data.last_login,
@@ -81,7 +87,7 @@ export const userService = {
   async updateProfile(userId, updates) {
     try {
       const updateData = {};
-      
+
       if (updates.name) updateData.name = updates.name;
       if (updates.email) updateData.email = updates.email;
 
@@ -112,7 +118,7 @@ export const userService = {
 
       // Verify current password
       const isValidPassword = await bcrypt.compare(currentPassword, user.password);
-      
+
       if (!isValidPassword) {
         throw new Error('Current password is incorrect');
       }
