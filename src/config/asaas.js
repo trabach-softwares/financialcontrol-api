@@ -48,8 +48,8 @@ export const asaasConfig = {
   
   // Configurações de pagamento
   payment: {
-    // Dias para vencimento padrão
-    defaultDueDays: 3,
+    // Dias para vencimento padrão (0 = cobrança imediata no dia atual)
+    defaultDueDays: 0,
     
     // Métodos aceitos
     methods: {

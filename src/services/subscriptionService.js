@@ -144,8 +144,10 @@ export const subscriptionService = {
 
       console.log(`✅ Customer Asaas: ${customerId}`);
 
-      // 7. Data de vencimento = hoje (cobrança imediata no cartão)
-      const formattedDueDate = new Date().toISOString().split('T')[0];
+      // 7. Data de vencimento = hoje no horário de Brasília (cobrança imediata no cartão)
+      // Usar UTC-3 para evitar que datas perto da meia-noite UTC gerem vencimento no dia seguinte
+      const brNow = new Date(Date.now() - 3 * 60 * 60 * 1000);
+      const formattedDueDate = brNow.toISOString().split('T')[0];
 
       // 7. Preparar payload da assinatura
       const subscriptionPayload = {

@@ -158,14 +158,17 @@ class PaymentService {
       const customerId = await this.getOrCreateAsaasCustomer(user);
 
       // 5. Preparar payload da cobrança
-      const dueDate = new Date();
-      dueDate.setDate(dueDate.getDate() + asaasConfig.payment.defaultDueDays);
+      // Usar horário de Brasília (UTC-3) para evitar que datas perto da meia-noite UTC
+      // gerem vencimento no "dia seguinte" do ponto de vista do Asaas
+      const brNow = new Date(Date.now() - 3 * 60 * 60 * 1000);
+      brNow.setDate(brNow.getDate() + asaasConfig.payment.defaultDueDays);
+      const dueDateStr = brNow.toISOString().split('T')[0]; // YYYY-MM-DD
 
       const paymentPayload = {
         customer: customerId,
         billingType: paymentMethod,
         value: parseFloat(plan.price),
-        dueDate: dueDate.toISOString().split('T')[0], // YYYY-MM-DD
+        dueDate: dueDateStr, // YYYY-MM-DD
         description: `Assinatura ${plan.name} - ${plan.description}`,
         externalReference: userId, // IMPORTANTE: Para identificar no webhook
         postalService: false
